@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,7 @@ import { exportDb, importDb } from '@/lib/backup';
 import { changeDailyLock, changeAdminPin } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
 import { getAuditLog } from '@/db/queries/audit';
+import { getCategories, addCategory, updateCategory, deleteCategory, Category } from '@/db/queries/categories';
 import { format, parseISO } from 'date-fns';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -28,9 +29,19 @@ const ACTION_COLORS: Record<string, string> = {
   'تعديل_سعر_منتج': 'bg-warning/10 text-warning',
 };
 
+interface CategoryForm {
+  name: string;
+  color: string;
+  icon: string;
+  sort_order: string;
+}
+
+const EMPTY_CAT_FORM: CategoryForm = { name: '', color: '#CF694A', icon: 'Box', sort_order: '0' };
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit' | 'categories'>('general');
   const { settings, updateSettings } = useSettingsStore();
+  const qc = useQueryClient();
 
   // General Settings
   const [storeName, setStoreName] = useState(settings.storeName);
@@ -63,6 +74,91 @@ export default function SettingsPage() {
     queryFn: () => getAuditLog(200),
     enabled: activeTab === 'audit',
   });
+
+  // Categories state
+  const [catForm, setCatForm] = useState<CategoryForm>(EMPTY_CAT_FORM);
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [showCatForm, setShowCatForm] = useState(false);
+
+  const { data: categories = [], refetch: refetchCats } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => getCategories(),
+    enabled: activeTab === 'categories',
+  });
+
+  const addCatMutation = useMutation({
+    mutationFn: () => addCategory({
+      name: catForm.name,
+      color: catForm.color,
+      icon: catForm.icon,
+      sort_order: parseInt(catForm.sort_order) || 0,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] });
+      refetchCats();
+      setCatForm(EMPTY_CAT_FORM);
+      setShowCatForm(false);
+      toast.success('تمت إضافة الفئة');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateCatMutation = useMutation({
+    mutationFn: () => updateCategory(editingCat!.id, {
+      name: catForm.name,
+      color: catForm.color,
+      icon: catForm.icon,
+      sort_order: parseInt(catForm.sort_order) || 0,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] });
+      refetchCats();
+      setEditingCat(null);
+      setShowCatForm(false);
+      setCatForm(EMPTY_CAT_FORM);
+      toast.success('تم تحديث الفئة');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const toggleCatMutation = useMutation({
+    mutationFn: (cat: Category) => updateCategory(cat.id, { is_active: !cat.is_active }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] });
+      refetchCats();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteCatMutation = useMutation({
+    mutationFn: (id: string) => deleteCategory(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] });
+      refetchCats();
+      toast.success('تم حذف الفئة');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const openAddCat = () => {
+    setEditingCat(null);
+    setCatForm(EMPTY_CAT_FORM);
+    setShowCatForm(true);
+  };
+
+  const openEditCat = (cat: Category) => {
+    setEditingCat(cat);
+    setCatForm({ name: cat.name, color: cat.color, icon: cat.icon, sort_order: cat.sort_order.toString() });
+    setShowCatForm(true);
+  };
+
+  const submitCatForm = () => {
+    if (!catForm.name.trim()) { toast.error('اسم الفئة مطلوب'); return; }
+    requireAdminAction(() => {
+      if (editingCat) updateCatMutation.mutate();
+      else addCatMutation.mutate();
+    });
+  };
 
   const handleSaveDailyLock = async () => {
     if (newDailyLock.length < 4) {
@@ -236,6 +332,18 @@ export default function SettingsPage() {
             >
               <ClipboardList className="w-5 h-5" />
               سجل التدقيق
+            </button>
+            <button
+              onClick={() => setActiveTab('categories')}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors text-start",
+                activeTab === 'categories'
+                  ? "bg-accent text-white shadow-sm"
+                  : "bg-surface text-text-secondary hover:bg-muted"
+              )}
+            >
+              <Tag className="w-5 h-5" />
+              إدارة الفئات
             </button>
           </div>
 
@@ -502,6 +610,164 @@ export default function SettingsPage() {
                           </td>
                           <td className="px-4 py-3 text-text-primary" style={{ fontFamily: 'Tajawal, sans-serif' }}>
                             {row.detail ?? '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'categories' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Tag className="w-6 h-6 text-accent" /> إدارة الفئات
+                  </h2>
+                  <button
+                    onClick={openAddCat}
+                    className="flex items-center gap-2 px-4 h-10 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    فئة جديدة
+                  </button>
+                </div>
+
+                {showCatForm && (
+                  <div className="border border-accent/30 bg-accent/5 rounded-xl p-4 space-y-3 mb-4">
+                    <h3 className="font-bold text-accent">{editingCat ? 'تعديل فئة' : 'إضافة فئة جديدة'}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">اسم الفئة *</label>
+                        <input
+                          type="text"
+                          value={catForm.name}
+                          onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent"
+                          placeholder="مثال: هواتف مستعملة"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">الترتيب</label>
+                        <input
+                          type="number"
+                          dir="ltr"
+                          value={catForm.sort_order}
+                          onChange={e => setCatForm(f => ({ ...f, sort_order: e.target.value }))}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent text-start"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">اللون</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={catForm.color}
+                            onChange={e => setCatForm(f => ({ ...f, color: e.target.value }))}
+                            className="h-10 w-14 rounded border border-border cursor-pointer bg-background p-1"
+                          />
+                          <input
+                            type="text"
+                            dir="ltr"
+                            value={catForm.color}
+                            onChange={e => setCatForm(f => ({ ...f, color: e.target.value }))}
+                            className="flex-1 h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent text-start font-mono text-sm"
+                            placeholder="#CF694A"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">اسم الأيقونة (Lucide)</label>
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={catForm.icon}
+                          onChange={e => setCatForm(f => ({ ...f, icon: e.target.value }))}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent text-start"
+                          placeholder="Box"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={submitCatForm}
+                        disabled={addCatMutation.isPending || updateCatMutation.isPending}
+                        className="px-5 h-10 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50"
+                      >
+                        {editingCat ? 'حفظ التعديل' : 'إضافة'}
+                      </button>
+                      <button
+                        onClick={() => { setShowCatForm(false); setEditingCat(null); setCatForm(EMPTY_CAT_FORM); }}
+                        className="px-5 h-10 bg-muted border border-border text-text-primary font-bold rounded-lg hover:bg-border transition-colors"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted text-text-secondary">
+                      <tr>
+                        <th className="px-4 py-3 text-start">الفئة</th>
+                        <th className="px-4 py-3 text-start">اللون</th>
+                        <th className="px-4 py-3 text-start">الترتيب</th>
+                        <th className="px-4 py-3 text-start">الحالة</th>
+                        <th className="px-4 py-3 text-start">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {categories.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-10 text-center text-text-secondary">لا توجد فئات بعد</td>
+                        </tr>
+                      ) : categories.map(cat => (
+                        <tr key={cat.id} className={cn("hover:bg-muted/30", !cat.is_active && "opacity-50")}>
+                          <td className="px-4 py-3 font-medium">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="inline-block w-3 h-3 rounded-full shrink-0"
+                                style={{ backgroundColor: cat.color }}
+                              />
+                              {cat.name}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-text-secondary" dir="ltr">{cat.color}</td>
+                          <td className="px-4 py-3 numeric text-text-secondary">{cat.sort_order}</td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-xs font-bold",
+                              cat.is_active ? "bg-success/10 text-success" : "bg-muted text-text-secondary"
+                            )}>
+                              {cat.is_active ? 'نشطة' : 'موقوفة'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => openEditCat(cat)}
+                                className="p-1.5 hover:bg-muted rounded-lg transition-colors text-text-secondary hover:text-text-primary"
+                                title="تعديل"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => requireAdminAction(() => toggleCatMutation.mutate(cat))}
+                                className="p-1.5 hover:bg-muted rounded-lg transition-colors text-text-secondary hover:text-text-primary"
+                                title={cat.is_active ? 'إيقاف' : 'تفعيل'}
+                              >
+                                {cat.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={() => requireAdminAction(() => deleteCatMutation.mutate(cat.id))}
+                                className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors text-text-secondary hover:text-danger"
+                                title="حذف"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

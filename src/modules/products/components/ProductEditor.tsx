@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Product, addProduct, updateProduct, toggleProductActive } from '@/db/queries/products';
+import { getCategories } from '@/db/queries/categories';
 import { X, Save, Power } from 'lucide-react';
 import { parseMoney } from '@/lib/money';
 import { toast } from 'sonner';
@@ -16,20 +17,19 @@ interface ProductEditorProps {
   onClose: () => void;
 }
 
-const CATEGORIES = [
-  { id: 'device', name: 'أجهزة' },
-  { id: 'accessory', name: 'إكسسوارات' },
-  { id: 'sim', name: 'شرائح اتصال' },
-  { id: 'package', name: 'باقات' },
-  { id: 'service_repair', name: 'خدمات صيانة' },
-  { id: 'service_general', name: 'خدمات عامة' }
-];
-
 export function ProductEditor({ product, isOpen, onClose }: ProductEditorProps) {
   const queryClient = useQueryClient();
   const isEditing = !!product;
   const { requireAdminAction } = useAuth();
   const [confirmToggle, setConfirmToggle] = useState(false);
+
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => getCategories(true),
+    staleTime: Infinity,
+  });
+
+  const CATEGORIES = dbCategories.map(c => ({ id: c.id, name: c.name }));
 
   const [formData, setFormData] = useState({
     name: '',

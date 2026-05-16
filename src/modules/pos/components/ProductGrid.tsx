@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, PackageSearch } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getActiveProducts, Product } from '@/db/queries/products';
+import { getCategories } from '@/db/queries/categories';
 import { useCartStore } from '@/stores/cart.store';
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -10,21 +11,25 @@ import { loadProductImage } from '@/lib/imageStorage';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getProductIcon } from '@/lib/iconMap';
 
-const CATEGORIES = [
-  { id: 'all',             label: 'الكل',         color: '#CF694A' },
-  { id: 'device',          label: 'أجهزة',         color: '#2563EB' },
-  { id: 'sim',             label: 'شرائح',         color: '#7C3AED' },
-  { id: 'service_general', label: 'خدمات عامة',    color: '#0D9488' },
-  { id: 'service_repair',  label: 'خدمات صيانة',   color: '#EA7317' },
-  { id: 'accessory',       label: 'إكسسوار',       color: '#D9A404' },
-  { id: 'package',         label: 'باقات',         color: '#DB2777' },
-];
-
 export function ProductGrid() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 150);
   const [category, setCategory] = useState('all');
   const { addItem } = useCartStore();
+
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => getCategories(true),
+    staleTime: Infinity,
+  });
+
+  const allTab = { id: 'all', label: 'الكل', color: '#CF694A' };
+  const categoryTabs = [
+    allTab,
+    ...dbCategories.map(c => ({ id: c.id, label: c.name, color: c.color })),
+  ];
+
+  const catColorMap = Object.fromEntries(dbCategories.map(c => [c.id, c.color]));
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products', 'active', debouncedSearch, category],
@@ -83,7 +88,7 @@ export function ProductGrid() {
         </div>
 
         <div className="flex overflow-x-auto no-scrollbar" role="tablist" aria-label="تصفية حسب الفئة">
-          {CATEGORIES.map((cat) => {
+          {categoryTabs.map((cat) => {
             const isActive = category === cat.id;
             return (
               <button
@@ -163,7 +168,11 @@ export function ProductGrid() {
                 >
                   {rowProducts.map(product => (
                     <div key={product.id} style={{ width: `${100 / columns}%` }} className="h-full">
-                      <ProductCard product={product} onAdd={() => addItem(product)} />
+                      <ProductCard
+                        product={product}
+                        onAdd={() => addItem(product)}
+                        categoryColor={catColorMap[product.category]}
+                      />
                     </div>
                   ))}
                 </div>
@@ -176,7 +185,15 @@ export function ProductGrid() {
   );
 }
 
-function ProductCard({ product, onAdd }: { product: Product; onAdd: () => void }) {
+function hexToRgb(hex: string) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return { r, g, b };
+}
+
+function ProductCard({ product, onAdd, categoryColor }: { product: Product; onAdd: () => void; categoryColor?: string }) {
   const isOutOfStock = product.track_stock && product.stock_qty <= 0;
   const isLowStock = product.track_stock && product.stock_qty > 0 && product.stock_qty <= product.min_stock;
 
@@ -196,16 +213,13 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: () => void }
     return () => { active = false; };
   }, [product.image_path]);
 
-  const categoryColors: Record<string, { bg: string; text: string }> = {
-    device:          { bg: '#E8EEF6', text: '#1E40AF' },
-    sim:             { bg: '#F0EAF6', text: '#5B21B6' },
-    service_general: { bg: '#EEF6EA', text: '#166534' },
-    service_repair:  { bg: '#FCF4F1', text: '#CF694A' },
-    accessory:       { bg: '#F6F2E8', text: '#854D0E' },
-    package:         { bg: '#F6E8E8', text: '#991B1B' },
-    default:         { bg: '#F3F1EC', text: '#6D6A62' },
-  };
-  const color = categoryColors[product.category as string] || categoryColors.default;
+  const color = (() => {
+    if (categoryColor && /^#[0-9A-Fa-f]{6}$/.test(categoryColor)) {
+      const { r, g, b } = hexToRgb(categoryColor);
+      return { bg: `rgba(${r},${g},${b},0.10)`, text: categoryColor };
+    }
+    return { bg: '#F3F1EC', text: '#6D6A62' };
+  })();
   const IconComponent = getProductIcon(product.icon);
 
   const triggerAdd = () => {

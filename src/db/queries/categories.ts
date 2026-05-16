@@ -1,0 +1,65 @@
+import { dbClient } from '../client';
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export async function getCategories(activeOnly = false): Promise<Category[]> {
+  const sql = activeOnly
+    ? `SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order ASC, name ASC`
+    : `SELECT * FROM categories ORDER BY sort_order ASC, name ASC`;
+  const rows = await dbClient.query(sql);
+  return rows.map((r: any) => ({ ...r, is_active: r.is_active === 1 }));
+}
+
+export async function addCategory(data: {
+  name: string;
+  color: string;
+  icon: string;
+  sort_order: number;
+}): Promise<string> {
+  const id = `cat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  await dbClient.run(
+    `INSERT INTO categories (id, name, color, icon, sort_order, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, 1, datetime('now'))`,
+    [id, data.name.trim(), data.color, data.icon, data.sort_order]
+  );
+  return id;
+}
+
+export async function updateCategory(
+  id: string,
+  data: Partial<{ name: string; color: string; icon: string; sort_order: number; is_active: boolean }>
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (data.name !== undefined)       { fields.push('name = ?');       values.push(data.name.trim()); }
+  if (data.color !== undefined)      { fields.push('color = ?');      values.push(data.color); }
+  if (data.icon !== undefined)       { fields.push('icon = ?');       values.push(data.icon); }
+  if (data.sort_order !== undefined) { fields.push('sort_order = ?'); values.push(data.sort_order); }
+  if (data.is_active !== undefined)  { fields.push('is_active = ?');  values.push(data.is_active ? 1 : 0); }
+
+  if (fields.length === 0) return;
+  values.push(id);
+  await dbClient.run(`UPDATE categories SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const linked = await dbClient.query(
+    `SELECT COUNT(*) as count FROM products WHERE category = ? AND is_active = 1`,
+    [id]
+  );
+  if (linked[0].count > 0) {
+    throw new Error(
+      `لا يمكن حذف هذه الفئة لأنها مرتبطة بـ ${linked[0].count} منتج نشط. انقلها إلى فئة أخرى أولاً أو أوقف الفئة.`
+    );
+  }
+  await dbClient.run(`DELETE FROM categories WHERE id = ?`, [id]);
+}

@@ -3,15 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { ProductGrid } from "./components/ProductGrid";
 import { CartSidebar } from "./components/CartSidebar";
 import { SavedCartsTabs } from "./components/SavedCartsTabs";
-import { seedProductsIfEmpty } from "@/db/queries/products";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCartStore } from "@/stores/cart.store";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { ShoppingCart, X, Home } from "lucide-react";
 
 export default function POSPage() {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showMobileCart, setShowMobileCart] = useState(false);
   const { items, getTotal, pulseTrigger } = useCartStore();
@@ -24,12 +21,6 @@ export default function POSPage() {
       return () => clearTimeout(t);
     }
   }, [pulseTrigger]);
-
-  useEffect(() => {
-    seedProductsIfEmpty().then(() => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    });
-  }, [queryClient]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
