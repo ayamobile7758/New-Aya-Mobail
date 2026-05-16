@@ -19,7 +19,7 @@ export default defineConfig(({mode}) => {
           theme_color: '#F9F8F5',
           background_color: '#F9F8F5',
           display: 'standalone',
-          orientation: 'portrait',
+          orientation: 'any',
           icons: [
             {
               src: '/pwa-192x192.png',
@@ -34,6 +34,7 @@ export default defineConfig(({mode}) => {
             }
           ]
         },
+        devOptions: { enabled: true },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
           maximumFileSizeToCacheInBytes: 5000000,
