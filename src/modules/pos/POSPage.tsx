@@ -39,9 +39,10 @@ export default function POSPage() {
         <div className="flex items-center shrink-0 border-b border-border bg-background">
           <button
             onClick={() => navigate('/dashboard')}
-            className="hidden lg:flex w-11 h-11 shrink-0 mx-2 items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-text-primary hover:border-accent transition-colors shadow-sm"
+            className="flex w-11 h-11 shrink-0 mx-2 items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-text-primary hover:border-accent transition-colors shadow-sm"
             title="العودة للرئيسية"
-            style={{ touchAction: 'manipulation', userSelect: 'none' }}
+            aria-label="العودة للرئيسية"
+            style={{ touchAction: 'manipulation', userSelect: 'none', minWidth: 44, minHeight: 44 }}
           >
             <Home className="w-5 h-5" />
           </button>
