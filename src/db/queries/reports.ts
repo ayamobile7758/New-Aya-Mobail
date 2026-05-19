@@ -44,6 +44,15 @@ export async function getReport(fromDate: string, toDate: string) {
     [fromDate, toDate]
   );
 
+  // 4. Gift cost — cost of goods given as gifts (0 revenue, full cost reduces profit)
+  const [giftRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(ii.unit_cost * ii.quantity), 0) AS gift_cost
+     FROM invoice_items ii
+     JOIN invoices i ON ii.invoice_id = i.id
+     WHERE i.invoice_date BETWEEN ? AND ? AND i.status = 'active' AND ii.is_gift = 1`,
+    [fromDate, toDate]
+  );
+
   const totalSales = kpiRow?.total_sales ?? 0;
   const totalDiscounts = kpiRow?.total_discounts ?? 0;
   const invoiceCount = kpiRow?.invoice_count ?? 0;
@@ -55,8 +64,9 @@ export async function getReport(fromDate: string, toDate: string) {
   const netProfit = grossProfit - totalExpenses;
   const returnCount = retRow?.return_count ?? 0;
   const returnValue = retRow?.return_value ?? 0;
+  const giftCost = giftRow?.gift_cost ?? 0;
 
-  // 4. Sales by category (snapshot)
+  // 5. Sales by category (snapshot)
   const byCategoryRaw = await dbClient.query(
     `SELECT
        ii.product_category               AS category,
@@ -79,7 +89,7 @@ export async function getReport(fromDate: string, toDate: string) {
     qty: r.qty,
   }));
 
-  // 5. Top 10 products by revenue
+  // 6. Top 10 products by revenue
   const topProductsRaw = await dbClient.query(
     `SELECT
        ii.product_name                   AS name,
@@ -103,7 +113,7 @@ export async function getReport(fromDate: string, toDate: string) {
     profit: r.revenue - r.cost,
   }));
 
-  // 6. Sales by payment account
+  // 7. Sales by payment account
   const byAccountRaw = await dbClient.query(
     `SELECT
        a.name AS account_name,
@@ -118,7 +128,7 @@ export async function getReport(fromDate: string, toDate: string) {
     [fromDate, toDate]
   );
 
-  // 7. Daily breakdown (sales)
+  // 8. Daily breakdown (sales)
   const dailySalesRaw = await dbClient.query(
     `SELECT
        i.invoice_date AS date,
@@ -161,7 +171,7 @@ export async function getReport(fromDate: string, toDate: string) {
     };
   });
 
-  // 8. Expenses by category
+  // 9. Expenses by category
   const expByCatRaw = await dbClient.query(
     `SELECT ec.name AS category, COALESCE(SUM(e.amount), 0) AS total
      FROM expenses e
@@ -190,6 +200,7 @@ export async function getReport(fromDate: string, toDate: string) {
       netProfit,
       returnCount,
       returnValue,
+      giftCost,
     },
     salesByCategory,
     topProducts,

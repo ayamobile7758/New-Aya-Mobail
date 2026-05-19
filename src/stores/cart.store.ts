@@ -12,6 +12,7 @@ export interface CartItem {
   discountType: 'amount' | 'percent';
   discountValue: number;
   overridePrice?: number;
+  isGift: boolean;
 }
 
 interface CartState {
@@ -27,6 +28,7 @@ interface CartState {
   updateQuantity: (cartItemId: string, qty: number) => void;
   setItemDiscount: (cartItemId: string, type: 'amount' | 'percent', value: number) => void;
   setItemPrice: (cartItemId: string, priceInFils: number) => void;
+  setItemGift: (cartItemId: string, isGift: boolean) => void;
   setGlobalDiscount: (type: 'amount' | 'percent', value: number) => void;
   clearCart: () => void;
   switchToCart: (savedCartId: string) => void;
@@ -41,6 +43,11 @@ interface CartState {
 export function calculateItemLineTotal(item: CartItem): { subtotal: number; discountAmt: number; total: number } {
   const unitPrice = item.overridePrice !== undefined ? item.overridePrice : item.product.sale_price;
   const sub = mulMoney(unitPrice, item.quantity);
+
+  if (item.isGift) {
+    return { subtotal: sub, discountAmt: sub, total: 0 };
+  }
+
   let dAmt = 0;
   if (item.discountType === 'amount') {
     dAmt = item.discountValue;
@@ -118,7 +125,7 @@ export const useCartStore = create<CartState>()(
         haptic();
         const nextPulse = state.pulseTrigger + 1;
         const existingIndex = state.items.findIndex(
-          i => i.product.id === product.id && i.discountValue === 0 && !i.overridePrice
+          i => i.product.id === product.id && i.discountValue === 0 && !i.overridePrice && !i.isGift
         );
         let newItems;
         if (existingIndex >= 0) {
@@ -131,6 +138,7 @@ export const useCartStore = create<CartState>()(
             quantity: 1,
             discountType: 'amount',
             discountValue: 0,
+            isGift: false,
           };
           newItems = [...state.items, newItem];
         }
@@ -175,6 +183,15 @@ export const useCartStore = create<CartState>()(
         return {
           items: state.items.map(i =>
             i.cartItemId === cartItemId ? { ...i, overridePrice: Math.max(0, priceInFils) } : i
+          )
+        };
+      }),
+
+      setItemGift: (cartItemId, isGift) => set((state) => {
+        safeSyncLater(get);
+        return {
+          items: state.items.map(i =>
+            i.cartItemId === cartItemId ? { ...i, isGift } : i
           )
         };
       }),

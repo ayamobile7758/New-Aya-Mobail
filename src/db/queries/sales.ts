@@ -84,43 +84,76 @@ export async function completeSale(data: {
     return { item, unitPrice, itemSub, perItemDiscount, afterPerItem };
   });
 
+  // For gift items: perItemDiscount === itemSub (full subtotal), afterPerItem === 0
+  // So totalPerItemDiscount includes gift subtotals, and globalDiscountAmt = pure global discount
   const totalPerItemDiscount = itemLineData.reduce((s, d) => s + d.perItemDiscount, 0);
   const globalDiscountAmt = Math.max(0, totalDiscount - totalPerItemDiscount);
-  const itemsAfterPerItem = itemLineData.reduce((s, d) => s + d.afterPerItem, 0);
 
-  // Distribute global discount proportionally; last item absorbs rounding remainder
+  // Distribute global discount proportionally among NON-GIFT items only.
+  // Last non-gift item absorbs the rounding remainder.
+  const nonGiftTotal = itemLineData.reduce((s, d) => s + (d.item.isGift ? 0 : d.afterPerItem), 0);
+  const nonGiftIndices = itemLineData
+    .map((_, i) => i)
+    .filter(i => !itemLineData[i].item.isGift);
+
+  const globalShares: number[] = new Array(itemLineData.length).fill(0);
   let assignedGlobal = 0;
-  const globalShares = itemLineData.map((d, idx) => {
-    if (idx === itemLineData.length - 1) return globalDiscountAmt - assignedGlobal;
-    const share = itemsAfterPerItem > 0
-      ? Math.round(globalDiscountAmt * d.afterPerItem / itemsAfterPerItem)
-      : 0;
-    assignedGlobal += share;
-    return share;
+  nonGiftIndices.forEach((idx, k) => {
+    if (k === nonGiftIndices.length - 1) {
+      globalShares[idx] = globalDiscountAmt - assignedGlobal;
+    } else {
+      const share = nonGiftTotal > 0
+        ? Math.round(globalDiscountAmt * itemLineData[idx].afterPerItem / nonGiftTotal)
+        : 0;
+      globalShares[idx] = share;
+      assignedGlobal += share;
+    }
   });
 
   // 4. Insert items and update stock
   for (let i = 0; i < cartItems.length; i++) {
     const { item, unitPrice, itemSub, perItemDiscount } = itemLineData[i];
-    const discountAmount = perItemDiscount + globalShares[i];
-    const lineTotal = Math.max(0, itemSub - discountAmount);
     const itemId = nanoid();
 
-    stmts.push({
-      sql: `INSERT INTO invoice_items
-              (id, invoice_id, product_id, product_name, quantity,
-               unit_price, unit_cost, product_category, discount_amount, line_total)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      params: [
-        itemId, invoiceId,
-        item.product.id, item.product.name, item.quantity,
-        unitPrice,
-        item.product.cost_price ?? 0,
-        item.product.category,
-        discountAmount,
-        lineTotal,
-      ],
-    });
+    if (item.isGift) {
+      // Gift line: line_total = 0, is_gift = 1, discount_amount = full subtotal,
+      // unit_cost recorded for correct profit calculation
+      stmts.push({
+        sql: `INSERT INTO invoice_items
+                (id, invoice_id, product_id, product_name, quantity,
+                 unit_price, unit_cost, product_category, discount_amount, line_total, is_gift)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          itemId, invoiceId,
+          item.product.id, item.product.name, item.quantity,
+          unitPrice,
+          item.product.cost_price ?? 0,
+          item.product.category,
+          itemSub,
+          0,
+          1,
+        ],
+      });
+    } else {
+      const discountAmount = perItemDiscount + globalShares[i];
+      const lineTotal = Math.max(0, itemSub - discountAmount);
+      stmts.push({
+        sql: `INSERT INTO invoice_items
+                (id, invoice_id, product_id, product_name, quantity,
+                 unit_price, unit_cost, product_category, discount_amount, line_total, is_gift)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          itemId, invoiceId,
+          item.product.id, item.product.name, item.quantity,
+          unitPrice,
+          item.product.cost_price ?? 0,
+          item.product.category,
+          discountAmount,
+          lineTotal,
+          0,
+        ],
+      });
+    }
 
     if (item.product.track_stock) {
       stmts.push({

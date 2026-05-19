@@ -1,0 +1,66 @@
+Work inside the EXISTING POS project. Do NOT create a new project.
+
+GROUND RULES (apply to every step):
+- Before editing any file, READ its current contents first.
+- Before referencing any DB table/column, inspect the actual schema in src/db/migrations/*.sql. NEVER assume names — verify.
+- Do NOT change/refactor unrelated code, logic, layout, or behavior.
+- RTL: logical CSS only (ms-/me-/ps-/pe-/start-/end-).
+- Brand: copper #CF694A, beige #F9F8F5.
+- Money values are integers (1 dinar = 100 fils). Currency label "د.أ".
+- Reuse existing utilities; do not duplicate logic.
+- If a required file/function/symbol is missing or anything is ambiguous, STOP and report — do NOT guess.
+- After each section: run `npx tsc --noEmit`, fix errors, commit.
+
+TASK: Per-line discounts, an invoice-wide discount, and a gift feature in the POS cart.
+
+SECTION P1 — New migration
+- List src/db/migrations/ and use the NEXT available number. Register the new file in src/db/migrations/index.ts following the existing pattern exactly.
+- The migration adds one column:
+  ALTER TABLE invoice_items ADD COLUMN is_gift INTEGER NOT NULL DEFAULT 0;
+
+SECTION P2 — Cart store (src/stores/cart.store.ts)
+- First READ the current cart store and the CartItem type.
+- Add to CartItem: `isGift: boolean` (default false).
+- The per-line discount is always a FIXED AMOUNT in fils (discountType = 'amount'). It applies to the WHOLE line (not per single unit).
+- Update calculateItemLineTotal:
+  * if isGift === true → line total = 0.
+  * otherwise → line total = (unit price × quantity) − line discount, and cap the discount so it never exceeds (unit price × quantity) (no negative total).
+- Add an action setItemGift(cartItemId, isGift).
+
+SECTION P3 — Cart line UI (src/modules/pos/components/CartSidebar.tsx)
+- First READ the current cart line layout.
+- Restructure each cart line into TWO rows, about 100px tall:
+  * Row 1: product name + quantity + line total.
+  * Row 2: a price box (display only) + a discount box (editable, fixed amount in dinars, default 0) + a "هدية" (gift) toggle.
+- Tapping the discount box opens the existing NumPad to enter the amount (support decimal dinar entry, consistent with existing price-entry behavior).
+- When the gift toggle is ON: disable the discount box, mark the line "هدية", show line total 0, and show the price struck-through.
+- REMOVE the old "discount" button from the bottom action bar — the per-line discount now lives inside each line, and keeping the old button would create two conflicting discount entry points.
+
+SECTION P4 — Invoice-wide discount + conflict notice
+- Add an invoice-wide discount box in the cart totals area at the bottom (fixed amount).
+- Final total = (sum of cart line totals after their own discounts) − invoice-wide discount.
+- Gift lines are EXCLUDED from the invoice-wide discount distribution base.
+- The system must prevent total discounts on any product from exceeding that product's value.
+- Conflict notice: when the user enters or increases the invoice-wide discount AND at least one line already has a per-line discount, show a confirm dialog: "بعض المنتجات عليها خصم. الخصم الكلي سيُضاف فوقها. متابعة؟" with Continue / Cancel.
+
+SECTION P5 — Sale completion (src/db/queries/sales.ts, completeSale)
+- First READ the current completeSale implementation.
+- The invoice-wide discount must be distributed across line items PROPORTIONALLY to each line's value (NOT equally). If this proportional allocation already exists from earlier work, just verify it; if missing, implement it. Handle the rounding remainder by adding it to the largest line.
+- For a gift line: line_total = 0, is_gift = 1, unit_price = the normal sale price, discount_amount set so line_total = 0, unit_cost = the product's cost price (must be recorded), and stock is deducted normally.
+- Verify that the sum of all invoice_items.line_total equals invoices.total_amount for every invoice.
+
+SECTION P6 — Reports
+- First READ the current reports query file.
+- Add a "تكلفة الهدايا" (gift cost) metric for the selected period = SUM(unit_cost × quantity) for invoice_items where is_gift = 1.
+- Gifts must correctly reduce profit (0 revenue − recorded cost).
+
+ACCEPTANCE CRITERIA:
+- `npx tsc --noEmit` → 0 errors.
+- Each product has its own fixed-amount discount box, default 0.
+- Invoice-wide discount works, distributes proportionally, and excludes gift lines.
+- The conflict confirm dialog appears when a per-line discount and an invoice-wide discount coexist.
+- Gift lines: total 0, but cost and stock are still accounted for.
+- Sum of invoice line totals equals the invoice total.
+- No unrelated code/behavior changed.
+
+After each section commit. After P6: `git push origin main`.

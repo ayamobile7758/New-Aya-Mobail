@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney } from '@/lib/money';
-import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Percent, Tag } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
 import { toast } from 'sonner';
@@ -11,9 +11,10 @@ import { useEffect } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 
-// ─── NumPad action dialog ──────────────────────────────────────────────────────
-type ActionType = 'qty' | 'discount' | 'price';
+// ─── ActionType ────────────────────────────────────────────────────────────────
+type ActionType = 'qty' | 'price';
 
+// ─── NumPad action dialog (qty / price) ───────────────────────────────────────
 function ActionDialog({
   action,
   item,
@@ -27,11 +28,6 @@ function ActionDialog({
 }) {
   const initDigits = (): string => {
     if (action === 'qty') return String(item.quantity);
-    if (action === 'discount') {
-      return item.discountType === 'percent' && item.discountValue > 0
-        ? String(item.discountValue)
-        : '';
-    }
     if (action === 'price') {
       const unitPrice = item.overridePrice !== undefined ? item.overridePrice : item.product.sale_price;
       if (unitPrice <= 0) return '';
@@ -48,23 +44,16 @@ function ActionDialog({
 
   const titles: Record<ActionType, string> = {
     qty: 'الكمية',
-    discount: 'خصم %',
     price: 'السعر',
   };
 
   const displayValue = (): string => {
     if (!digits) return '—';
     if (action === 'qty') return digits;
-    if (action === 'discount') return `${digits}%`;
     return `${digits} د.أ`;
   };
 
   const handleDigit = (d: string) => {
-    if (action === 'discount') {
-      const next = digits + d;
-      setDigits(parseInt(next, 10) > 100 ? '100' : next);
-      return;
-    }
     if (action === 'price') {
       if (d === '.') {
         if (digits.includes('.')) return;
@@ -134,21 +123,120 @@ function ActionDialog({
   );
 }
 
-// ─── Global discount dialog ────────────────────────────────────────────────────
-function GlobalDiscountDialog({
-  currentValue,
+// ─── Per-line discount dialog ─────────────────────────────────────────────────
+function LineDiscountDialog({
+  item,
   onClose,
   onApply,
 }: {
-  currentValue: number;
+  item: CartItem;
   onClose: () => void;
-  onApply: (value: number) => void;
+  onApply: (fils: number) => void;
 }) {
-  const [digits, setDigits] = useState<string>(currentValue > 0 ? String(currentValue) : '');
+  const initDigits = (): string => {
+    if (item.discountValue <= 0) return '';
+    const dinars = item.discountValue / 100;
+    return Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(2).replace(/\.?0+$/, '');
+  };
+
+  const [digits, setDigits] = useState<string>(initDigits);
+  const dialogRef = useFocusTrap(true);
+
+  const handleDigit = (d: string) => {
+    if (d === '.') {
+      if (digits.includes('.')) return;
+      setDigits(prev => (prev === '' ? '0.' : prev + '.'));
+      return;
+    }
+    const next = digits + d;
+    const dotIdx = next.indexOf('.');
+    if (dotIdx >= 0 && next.length - dotIdx - 1 > 2) return;
+    setDigits(next);
+  };
 
   const handleSubmit = () => {
-    const val = parseInt(digits, 10);
-    onApply(!digits || isNaN(val) ? 0 : Math.min(100, Math.max(0, val)));
+    const fils = parseMoney(digits || '0');
+    onApply(Math.max(0, fils));
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        className="bg-surface rounded-t-2xl lg:rounded-2xl w-full max-w-sm p-5 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+        dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="خصم المنتج"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 700 }}>خصم</span>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-full">
+            <X className="w-5 h-5 text-text-secondary" />
+          </button>
+        </div>
+
+        <p className="text-text-secondary mb-3 truncate" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}>
+          {item.product.name}
+        </p>
+
+        <div
+          className="w-full text-center mb-4 py-3 rounded-xl bg-muted"
+          style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 700, color: '#CF694A', minHeight: '64px' }}
+        >
+          {digits ? `${digits} د.أ` : '—'}
+        </div>
+
+        <NumPad
+          allowDecimal
+          onDigit={handleDigit}
+          onClear={() => setDigits(prev => prev.slice(0, -1))}
+          onSubmit={handleSubmit}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Invoice-wide discount dialog (fixed amount in dinars) ────────────────────
+function GlobalDiscountAmountDialog({
+  currentValueFils,
+  onClose,
+  onApply,
+}: {
+  currentValueFils: number;
+  onClose: () => void;
+  onApply: (fils: number) => void;
+}) {
+  const initDigits = (): string => {
+    if (currentValueFils <= 0) return '';
+    const dinars = currentValueFils / 100;
+    return Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(2).replace(/\.?0+$/, '');
+  };
+
+  const [digits, setDigits] = useState<string>(initDigits);
+
+  const handleDigit = (d: string) => {
+    if (d === '.') {
+      if (digits.includes('.')) return;
+      setDigits(prev => (prev === '' ? '0.' : prev + '.'));
+      return;
+    }
+    const next = digits + d;
+    const dotIdx = next.indexOf('.');
+    if (dotIdx >= 0 && next.length - dotIdx - 1 > 2) return;
+    setDigits(next);
+  };
+
+  const handleSubmit = () => {
+    const fils = parseMoney(digits || '0');
+    onApply(Math.max(0, fils));
     onClose();
   };
 
@@ -176,14 +264,12 @@ function GlobalDiscountDialog({
           className="w-full text-center mb-4 py-3 rounded-xl bg-muted"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 700, color: '#CF694A', minHeight: '64px' }}
         >
-          {digits ? `${digits}%` : '—'}
+          {digits ? `${digits} د.أ` : '—'}
         </div>
 
         <NumPad
-          onDigit={d => setDigits(prev => {
-            const next = prev + d;
-            return parseInt(next, 10) > 100 ? '100' : next;
-          })}
+          allowDecimal
+          onDigit={handleDigit}
           onClear={() => setDigits(prev => prev.slice(0, -1))}
           onSubmit={handleSubmit}
         />
@@ -198,7 +284,7 @@ export function CartSidebar() {
     items, removeItem, updateQuantity, clearCart,
     getSubtotal, getTotalDiscount, getTotal,
     pulseTrigger,
-    setItemDiscount, setItemPrice,
+    setItemDiscount, setItemPrice, setItemGift,
     globalDiscountType, globalDiscountValue, setGlobalDiscount,
   } = useCartStore();
   useSavedCartsStore();
@@ -207,7 +293,10 @@ export function CartSidebar() {
   const [pulse, setPulse] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ActionType | null>(null);
+  const [discountEditId, setDiscountEditId] = useState<string | null>(null);
   const [showGlobalDiscountDialog, setShowGlobalDiscountDialog] = useState(false);
+  const [pendingGlobalAmt, setPendingGlobalAmt] = useState<number | null>(null);
+  const [showConflictConfirm, setShowConflictConfirm] = useState(false);
 
   useEffect(() => {
     if (pulseTrigger > 0) {
@@ -230,6 +319,7 @@ export function CartSidebar() {
   const [confirmClear, setConfirmClear] = useState(false);
 
   const selectedItem = selectedItemId ? items.find(i => i.cartItemId === selectedItemId) ?? null : null;
+  const discountEditItem = discountEditId ? items.find(i => i.cartItemId === discountEditId) ?? null : null;
 
   const handleDelete = (item: CartItem) => {
     const itemCopy = { ...item };
@@ -245,16 +335,23 @@ export function CartSidebar() {
     if (action === 'qty') {
       const val = parseInt(raw, 10);
       if (!isNaN(val)) updateQuantity(selectedItemId, Math.max(1, val));
-    } else if (action === 'discount') {
-      const val = parseInt(raw, 10);
-      if (!isNaN(val)) setItemDiscount(selectedItemId, 'percent', Math.min(100, Math.max(0, val)));
     } else if (action === 'price') {
       const fils = parseMoney(raw);
       setItemPrice(selectedItemId, Math.max(0, fils));
     }
   };
 
-  const currentGlobalDiscountPct = globalDiscountType === 'percent' ? globalDiscountValue : 0;
+  const handleGlobalDiscountApply = (fils: number) => {
+    const hasLineDiscounts = items.some(i => !i.isGift && i.discountValue > 0);
+    if (fils > 0 && hasLineDiscounts) {
+      setPendingGlobalAmt(fils);
+      setShowConflictConfirm(true);
+    } else {
+      setGlobalDiscount('amount', fils);
+    }
+  };
+
+  const currentGlobalDiscountFils = globalDiscountType === 'amount' ? globalDiscountValue : 0;
 
   return (
     <>
@@ -285,7 +382,7 @@ export function CartSidebar() {
             </div>
           ) : (
             items.map(item => {
-              const { discountAmt, total } = calculateItemLineTotal(item);
+              const { total } = calculateItemLineTotal(item);
               const isSelected = selectedItemId === item.cartItemId;
               const unitPrice = item.overridePrice !== undefined ? item.overridePrice : item.product.sale_price;
 
@@ -304,80 +401,131 @@ export function CartSidebar() {
                   aria-pressed={isSelected}
                   aria-label={`${item.product.name}، الكمية ${item.quantity}`}
                   style={{
-                    height: '88px',
+                    minHeight: '108px',
                     touchAction: 'manipulation',
                     userSelect: 'none',
                     border: isSelected ? '1.5px solid #CF694A' : '1.5px solid transparent',
-                    backgroundColor: isSelected ? '#FCF4F1' : 'var(--color-muted, #F5F4F0)',
+                    backgroundColor: item.isGift
+                      ? '#F0FDF4'
+                      : isSelected
+                        ? '#FCF4F1'
+                        : 'var(--color-muted, #F5F4F0)',
                     borderRadius: '10px',
                     cursor: 'pointer',
+                    padding: '8px',
+                    position: 'relative',
                   }}
-                  className="flex items-center gap-2 px-2 shrink-0 relative focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="flex flex-col shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  {/* Qty badge */}
-                  <div style={{
-                    width: '44px', height: '44px', backgroundColor: '#FCF4F1',
-                    borderRadius: '8px', border: '1px solid #F0E0DA',
-                    flexShrink: 0, display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '18px', fontWeight: 700, color: '#CF694A', lineHeight: 1 }}>
-                      {item.quantity}
-                    </span>
-                    <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: '#CF694A', opacity: 0.8 }}>
-                      وحدة
-                    </span>
-                  </div>
-
-                  {/* Middle */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <span className="truncate block" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '14px', fontWeight: 600 }}>
-                      {item.product.name}
-                    </span>
-                    <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      السعر: {formatMoney(unitPrice)}
-                      {item.overridePrice !== undefined && (
-                        <span style={{ color: '#EA7317', marginInlineStart: '4px' }}>✱</span>
-                      )}
-                    </span>
-                    {discountAmt > 0 && (
-                      <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '11px', color: '#DC2626' }}>
-                        الخصم: − {formatMoney(discountAmt)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Line total */}
-                  <span className="shrink-0 me-1" style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                    {formatMoney(total)}
-                  </span>
-
-                  {/* −/+ quick controls */}
-                  <div className="absolute bottom-1.5 start-1.5 flex gap-1" onClick={e => e.stopPropagation()}>
-                    <button
-                      onClick={() => { if (item.quantity <= 1) handleDelete(item); else updateQuantity(item.cartItemId, item.quantity - 1); }}
-                      style={{ width: '28px', height: '28px', touchAction: 'manipulation' }}
-                      className="rounded-full flex items-center justify-center bg-surface border border-border text-text-secondary hover:bg-muted"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
-                      style={{ width: '28px', height: '28px', touchAction: 'manipulation' }}
-                      className="rounded-full flex items-center justify-center bg-surface border border-border text-text-secondary hover:bg-muted"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  {/* Delete */}
+                  {/* Delete button — top-end */}
                   <button
                     onClick={e => { e.stopPropagation(); handleDelete(item); }}
-                    style={{ position: 'absolute', top: '6px', insetInlineEnd: '6px', width: '26px', height: '26px', touchAction: 'manipulation' }}
+                    style={{ position: 'absolute', top: '6px', insetInlineEnd: '6px', width: '24px', height: '24px', touchAction: 'manipulation' }}
                     className="rounded-full flex items-center justify-center text-text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
+                    aria-label="حذف"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
+
+                  {/* ── Row 1: Name · Qty controls · Line total ── */}
+                  <div className="flex items-center gap-1.5 pe-6">
+                    <span className="flex-1 truncate" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '14px', fontWeight: 600, textDecoration: item.isGift ? 'line-through' : 'none', opacity: item.isGift ? 0.6 : 1 }}>
+                      {item.product.name}
+                    </span>
+
+                    {/* Qty controls */}
+                    <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => { if (item.quantity <= 1) handleDelete(item); else updateQuantity(item.cartItemId, item.quantity - 1); }}
+                        style={{ width: '24px', height: '24px', touchAction: 'manipulation' }}
+                        className="rounded-full flex items-center justify-center bg-surface border border-border text-text-secondary hover:bg-muted"
+                        aria-label="تقليل الكمية"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span style={{ minWidth: '20px', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 700, color: '#CF694A' }}>
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
+                        style={{ width: '24px', height: '24px', touchAction: 'manipulation' }}
+                        className="rounded-full flex items-center justify-center bg-surface border border-border text-text-secondary hover:bg-muted"
+                        aria-label="زيادة الكمية"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {/* Line total */}
+                    <span className="shrink-0" style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: item.isGift ? '#16A34A' : 'var(--color-text-primary)', minWidth: '64px', textAlign: 'end' }}>
+                      {formatMoney(total)}
+                    </span>
+                  </div>
+
+                  {/* ── Row 2: Price box · Discount box · Gift toggle ── */}
+                  <div className="flex items-center gap-1.5 mt-2" onClick={e => e.stopPropagation()}>
+
+                    {/* Price display box */}
+                    <div style={{
+                      flex: '1', minWidth: 0,
+                      background: 'var(--color-surface, white)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '7px',
+                      padding: '3px 6px',
+                      display: 'flex', flexDirection: 'column',
+                    }}>
+                      <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: 'var(--color-text-secondary)' }}>سعر الوحدة</span>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 600, textDecoration: item.isGift ? 'line-through' : 'none', opacity: item.isGift ? 0.5 : 1 }}>
+                        {formatMoney(unitPrice)}
+                      </span>
+                    </div>
+
+                    {/* Discount box — tappable */}
+                    <button
+                      disabled={item.isGift}
+                      onClick={() => setDiscountEditId(item.cartItemId)}
+                      style={{
+                        flex: '1', minWidth: 0,
+                        background: item.discountValue > 0 ? '#FEF2F2' : 'var(--color-surface, white)',
+                        border: `1px solid ${item.discountValue > 0 ? '#FECACA' : 'var(--color-border)'}`,
+                        borderRadius: '7px',
+                        padding: '3px 6px',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        cursor: item.isGift ? 'not-allowed' : 'pointer',
+                        opacity: item.isGift ? 0.4 : 1,
+                        touchAction: 'manipulation',
+                      }}
+                      aria-label="تعديل الخصم"
+                    >
+                      <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>خصم</span>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 600, color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>
+                        {item.discountValue > 0 ? `− ${formatMoney(item.discountValue)}` : '—'}
+                      </span>
+                    </button>
+
+                    {/* Gift toggle */}
+                    <button
+                      onClick={() => setItemGift(item.cartItemId, !item.isGift)}
+                      style={{
+                        flexShrink: 0,
+                        background: item.isGift ? '#DCFCE7' : 'var(--color-surface, white)',
+                        border: `1px solid ${item.isGift ? '#86EFAC' : 'var(--color-border)'}`,
+                        borderRadius: '7px',
+                        padding: '3px 8px',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        cursor: 'pointer',
+                        touchAction: 'manipulation',
+                      }}
+                      aria-label="تبديل هدية"
+                      aria-pressed={item.isGift}
+                    >
+                      <Gift className="w-3.5 h-3.5" style={{ color: item.isGift ? '#16A34A' : 'var(--color-text-secondary)' }} />
+                      <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: item.isGift ? '#16A34A' : 'var(--color-text-secondary)', fontWeight: item.isGift ? 700 : 400 }}>
+                        هدية
+                      </span>
+                    </button>
+                  </div>
                 </div>
               );
             })
@@ -394,7 +542,7 @@ export function CartSidebar() {
               <span className="numeric">{formatMoney(getSubtotal())}</span>
             </div>
 
-            {/* Discount row — always visible (has global-discount button) */}
+            {/* Invoice-wide discount row */}
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
                 <span style={{ fontFamily: 'Tajawal, sans-serif', color: getTotalDiscount() > 0 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
@@ -406,17 +554,17 @@ export function CartSidebar() {
                   style={{ fontSize: '11px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation' }}
                   title="خصم على الفاتورة كاملة"
                 >
-                  <Percent className="w-3 h-3" />
+                  <Tag className="w-3 h-3" />
                   <span>فاتورة</span>
                 </button>
-                {currentGlobalDiscountPct > 0 && (
+                {currentGlobalDiscountFils > 0 && (
                   <span
                     className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-danger/10 text-danger"
                     style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif' }}
                   >
-                    {currentGlobalDiscountPct}%
+                    {formatMoney(currentGlobalDiscountFils)}
                     <button
-                      onClick={() => setGlobalDiscount('percent', 0)}
+                      onClick={() => setGlobalDiscount('amount', 0)}
                       className="hover:opacity-70 transition-opacity ms-0.5"
                       style={{ touchAction: 'manipulation' }}
                       title="إلغاء خصم الفاتورة"
@@ -441,12 +589,11 @@ export function CartSidebar() {
             </div>
           </div>
 
-          {/* Action bar */}
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* Action bar — qty and price only */}
+          <div className="grid grid-cols-2 gap-1.5">
             {(
               [
                 { action: 'qty' as ActionType, label: 'الكمية', Icon: Hash },
-                { action: 'discount' as ActionType, label: 'خصم %', Icon: Percent },
                 { action: 'price' as ActionType, label: 'السعر', Icon: Tag },
               ] as const
             ).map(({ action, label, Icon }) => (
@@ -480,7 +627,7 @@ export function CartSidebar() {
         </div>
       </div>
 
-      {/* NumPad action dialog */}
+      {/* NumPad action dialog (qty / price) */}
       {activeAction && selectedItem && (
         <ActionDialog
           action={activeAction}
@@ -490,14 +637,47 @@ export function CartSidebar() {
         />
       )}
 
-      {/* Global discount dialog */}
-      {showGlobalDiscountDialog && (
-        <GlobalDiscountDialog
-          currentValue={currentGlobalDiscountPct}
-          onClose={() => setShowGlobalDiscountDialog(false)}
-          onApply={val => setGlobalDiscount('percent', val)}
+      {/* Per-line discount dialog */}
+      {discountEditItem && (
+        <LineDiscountDialog
+          item={discountEditItem}
+          onClose={() => setDiscountEditId(null)}
+          onApply={fils => {
+            setItemDiscount(discountEditItem.cartItemId, 'amount', fils);
+            setDiscountEditId(null);
+          }}
         />
       )}
+
+      {/* Invoice-wide discount dialog */}
+      {showGlobalDiscountDialog && (
+        <GlobalDiscountAmountDialog
+          currentValueFils={currentGlobalDiscountFils}
+          onClose={() => setShowGlobalDiscountDialog(false)}
+          onApply={fils => {
+            handleGlobalDiscountApply(fils);
+            setShowGlobalDiscountDialog(false);
+          }}
+        />
+      )}
+
+      {/* Conflict confirmation dialog */}
+      <ConfirmDialog
+        open={showConflictConfirm}
+        title="تأكيد الخصم"
+        message="بعض المنتجات عليها خصم. الخصم الكلي سيُضاف فوقها. متابعة؟"
+        confirmLabel="متابعة"
+        cancelLabel="إلغاء"
+        onConfirm={() => {
+          if (pendingGlobalAmt !== null) setGlobalDiscount('amount', pendingGlobalAmt);
+          setPendingGlobalAmt(null);
+          setShowConflictConfirm(false);
+        }}
+        onCancel={() => {
+          setPendingGlobalAmt(null);
+          setShowConflictConfirm(false);
+        }}
+      />
 
       <PaymentDialog
         isOpen={isPaymentOpen}

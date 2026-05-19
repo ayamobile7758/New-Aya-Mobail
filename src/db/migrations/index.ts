@@ -13,6 +13,8 @@ import reportsCostingSql from './005_reports_costing.sql?raw';
 import auditLogSql from './006_audit_log.sql?raw';
 // @ts-ignore
 import categoriesSql from './007_categories.sql?raw';
+// @ts-ignore
+import giftItemsSql from './008_gift_items.sql?raw';
 
 const migrations = [
   { version: 1, sql: initSql },
@@ -22,6 +24,7 @@ const migrations = [
   { version: 5, sql: reportsCostingSql },
   { version: 6, sql: auditLogSql },
   { version: 7, sql: categoriesSql },
+  { version: 8, sql: giftItemsSql },
 ];
 
 export async function runMigrations() {
