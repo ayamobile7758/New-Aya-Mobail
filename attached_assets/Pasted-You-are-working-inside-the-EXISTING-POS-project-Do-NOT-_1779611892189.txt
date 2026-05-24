@@ -1,0 +1,104 @@
+You are working inside the EXISTING POS project. Do NOT create a new project.
+
+GROUND RULES — same as before. READ before editing. NEVER assume. DO NOT
+touch unrelated code. After completion: `npx tsc --noEmit` clean, commit, push.
+
+TASK: Clean up returnInvoice (src/db/queries/sales.ts) after prompt 1.A.
+Three small but important corrections.
+
+═══════════════════════════════════════════════════════════════
+FIX 1 — Remove dead/tautological per-item check
+═══════════════════════════════════════════════════════════════
+The current code (around lines 240-248):
+
+  for (const item of items) {
+    const refundQty = item.quantity;
+    if (refundQty > item.quantity) {
+      throw new Error(`الكمية المُسترجعة تتجاوز...`);
+    }
+  }
+
+This compares `item.quantity` to itself — the condition can never be true.
+The refunds API only carries (accountId, amount), not per-item quantities,
+so there is nothing to validate at the item level here.
+
+Required change: DELETE this entire loop. Do not replace with anything.
+Add a brief comment above the refunds processing explaining that per-item
+return quantities are not currently supported and full quantities are
+implicit (handled by FIX 2 below).
+
+═══════════════════════════════════════════════════════════════
+FIX 2 — Stock restoration only on FULL refund
+═══════════════════════════════════════════════════════════════
+The current logic restores ALL invoice items to stock even on a partial
+refund. That is wrong: on a partial money refund, the customer keeps
+the items physically; double-restoring would let the shop sell them again.
+
+Required behavior:
+- FULL refund   (newPaidAmount === 0)  →  restore all items to stock as today.
+- PARTIAL refund (newPaidAmount  >  0) →  do NOT restore any stock. Items
+                                          remain with the customer.
+
+Implementation:
+- The computation `const newPaidAmount = invoice.paid_amount - totalRefund;`
+  and `const newStatus = newPaidAmount === 0 ? 'returned' : 'partially_returned';`
+  already exists. Hoist these BEFORE building stmts (they may already be
+  positioned correctly — verify).
+- Wrap the existing stock-restoration loop in a guard:
+
+    if (newStatus === 'returned') {
+      for (const item of items) {
+        if (!item.product_id) continue;
+        stmts.push({
+          sql: `UPDATE products SET stock_qty = stock_qty + ?, updated_at = ?
+                WHERE id = ? AND track_stock = 1`,
+          params: [item.quantity, now, item.product_id],
+        });
+      }
+    }
+
+- Do not change the items loop's intent — only gate it by the full-refund
+  condition.
+
+═══════════════════════════════════════════════════════════════
+FIX 3 — Distinguish partial vs full refund in the audit log
+═══════════════════════════════════════════════════════════════
+The current logAudit call (near the end of returnInvoice) emits a single
+action string. Update it to reflect whether the refund was partial or
+full, using the same `newStatus` variable used in FIX 2.
+
+Suggested change:
+
+  const auditAction = newStatus === 'returned'
+    ? 'استرجاع_فاتورة_كامل'
+    : 'استرجاع_فاتورة_جزئي';
+  await logAudit(
+    auditAction,
+    `فاتورة رقم ${invoice.invoice_number} — ` +
+      `المسترجع: ${formatMoney(totalRefund)} — ` +
+      `المتبقي: ${formatMoney(newPaidAmount)}`,
+    'invoice',
+    invoiceId
+  );
+
+(Import `formatMoney` from '@/lib/money' if not already imported.)
+
+═══════════════════════════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════════════════════════
+- `npx tsc --noEmit` → 0 errors.
+- Partial refund (refund < paid_amount):
+    - invoice.status = 'partially_returned'
+    - invoice.paid_amount decremented correctly
+    - Refund accounts debited correctly with fee_amount
+    - Stock IS NOT changed
+    - Audit log records 'استرجاع_فاتورة_جزئي' with amounts
+- Full refund (refund == paid_amount):
+    - invoice.status = 'returned'
+    - Stock IS restored fully
+    - Audit log records 'استرجاع_فاتورة_كامل'
+- A second refund attempt on a fully-returned invoice is rejected by the
+  existing `paid_amount <= 0` guard.
+
+Commit: `fix(refund): partial refund does not restore stock + cleaner audit + remove dead check`
+Then `git push origin main`.

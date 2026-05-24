@@ -4,7 +4,7 @@ import { generateSequenceNumber } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useCartStore, calculateItemLineTotal } from '@/stores/cart.store';
 import { logAudit } from './audit';
-import { applyPercent } from '@/lib/money';
+import { applyPercent, formatMoney } from '@/lib/money';
 
 export async function completeSale(data: {
   cartItems: ReturnType<typeof useCartStore.getState>['items'];
@@ -238,13 +238,8 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
   const now = new Date().toISOString();
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // تحقق من كميات البنود: الكمية المُسترجعة لا تتجاوز الكمية الأصلية
-  for (const item of items) {
-    const refundQty = item.quantity;
-    if (refundQty > item.quantity) {
-      throw new Error(`الكمية المُسترجعة تتجاوز الكمية الأصلية للمنتج: ${item.product_name}`);
-    }
-  }
+  // ملاحظة: واجهة الاسترجاع الحالية تعمل بالمبالغ فقط (accountId, amount)
+  // ولا تتتبع كميات البنود لكل استرجاع — استرجاع المخزون يُطبَّق فقط عند الاسترجاع الكامل (FIX 2)
 
   // Pre-fetch fee_percent for refund accounts
   const refundAccountIds = refunds.map(r => r.accountId);
@@ -266,12 +261,15 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
     params: [newStatus, totalRefund, ` | ${returnNote}`, invoiceId],
   });
 
-  for (const item of items) {
-    if (!item.product_id) continue;
-    stmts.push({
-      sql: `UPDATE products SET stock_qty = stock_qty + ?, updated_at = ? WHERE id = ? AND track_stock = 1`,
-      params: [item.quantity, now, item.product_id],
-    });
+  // استرجاع المخزون فقط عند الاسترجاع الكامل — في الاسترجاع الجزئي البضاعة لا تزال عند العميل
+  if (newStatus === 'returned') {
+    for (const item of items) {
+      if (!item.product_id) continue;
+      stmts.push({
+        sql: `UPDATE products SET stock_qty = stock_qty + ?, updated_at = ? WHERE id = ? AND track_stock = 1`,
+        params: [item.quantity, now, item.product_id],
+      });
+    }
   }
 
   for (const refund of refunds) {
@@ -302,9 +300,14 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
 
   await dbClient.batchRun(stmts);
 
-  // P4: تسجيل سجل التدقيق
-  const auditDetail = newStatus === 'returned'
-    ? `فاتورة رقم ${invoice.invoice_number} — استرجاع كامل: ${totalRefund}`
-    : `فاتورة رقم ${invoice.invoice_number} — استرجاع جزئي: ${totalRefund} (المتبقي: ${newPaidAmount})`;
-  await logAudit('استرجاع_فاتورة', auditDetail, 'invoice', invoiceId);
+  // P4: تسجيل سجل التدقيق — يميّز بين الاسترجاع الكامل والجزئي
+  const auditAction = newStatus === 'returned'
+    ? 'استرجاع_فاتورة_كامل'
+    : 'استرجاع_فاتورة_جزئي';
+  await logAudit(
+    auditAction,
+    `فاتورة رقم ${invoice.invoice_number} — المسترجع: ${formatMoney(totalRefund)} — المتبقي: ${formatMoney(newPaidAmount)}`,
+    'invoice',
+    invoiceId
+  );
 }
