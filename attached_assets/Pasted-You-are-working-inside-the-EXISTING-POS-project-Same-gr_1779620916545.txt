@@ -1,0 +1,88 @@
+You are working inside the EXISTING POS project. Same ground rules.
+TOUCH ONLY the patterns listed. Test carefully — these affect invoice
+numbering and stock. After each section: tsc clean, commit. Push at end.
+
+TASK: Replace read-then-write patterns with atomic SQL. Reduces risk
+today on single tablet; required for multi-tablet later.
+
+═══════════════════════════════════════════════════════════════
+SECTION P4C.1 — Atomic sequence numbering
+═══════════════════════════════════════════════════════════════
+Current pattern in multiple callers:
+  const seq = await dbClient.query("SELECT last_val FROM sequences WHERE name = 'X'");
+  let nextVal = 1;
+  if (seq.length > 0) nextVal = seq[0].last_val + 1;
+  // ... in batch: UPDATE sequences SET last_val = ? WHERE name = 'X'
+
+Replace with atomic single-query:
+  const row = await dbClient.query(
+    `INSERT INTO sequences (name, last_val) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
+     RETURNING last_val`,
+    ['<seq_name>']
+  );
+  const nextVal = row[0].last_val;
+
+Before applying, VERIFY `sequences.name` has UNIQUE or PRIMARY KEY in
+001_init.sql. If not, abort and report.
+
+Then remove the corresponding `UPDATE sequences SET last_val = ?` from
+the subsequent batchRun in each caller.
+
+Apply in:
+  src/db/queries/sales.ts → completeSale (name='invoice')
+  src/db/queries/expenses.ts → addExpense (name='expense')
+  src/db/queries/operations.ts → createTopup (name='topup')
+  src/db/queries/operations.ts → createTransfer (name='transfer')
+  src/db/queries/maintenance.ts → addJob (verify sequence name)
+
+═══════════════════════════════════════════════════════════════
+SECTION P4C.2 — Guarded stock decrement
+═══════════════════════════════════════════════════════════════
+File: src/db/queries/sales.ts → completeSale stock loop.
+
+Current UPDATE (after Phase 1 P1 pre-fetch guard):
+  UPDATE products SET stock_qty = stock_qty - ? WHERE id = ?
+
+Replace with:
+  UPDATE products
+  SET stock_qty = stock_qty - ?, updated_at = ?
+  WHERE id = ? AND track_stock = 1 AND stock_qty >= ?
+
+The trailing condition rejects the UPDATE if stock dropped since the
+pre-fetch (this only matters with multiple tablets; harmless single-
+tablet).
+
+Important: read src/db/worker.ts to verify whether `dbClient.batchRun`
+treats a single-statement-affecting-zero-rows as a transaction failure.
+- If batchRun raises on non-affecting UPDATEs → atomicity is achieved.
+- If it silently continues → the existing pre-fetch P1 guard is the
+  effective safety net; add a clear code comment explaining this:
+  "// Strict atomic enforcement comes with Supabase RPC in Phase 7."
+
+Either way, the new WHERE clause is harmless and forward-compatible.
+
+═══════════════════════════════════════════════════════════════
+SECTION P4C.3 — Document atomic-by-design balance updates
+═══════════════════════════════════════════════════════════════
+Add a brief comment near each `UPDATE accounts SET balance = ...`
+statement (in expenses.ts, operations.ts, sales.ts, closures.ts,
+maintenance.ts):
+  // Atomic: single-statement UPDATE inside SQLite transaction.
+
+═══════════════════════════════════════════════════════════════
+ACCEPTANCE
+═══════════════════════════════════════════════════════════════
+- `npx tsc --noEmit` → 0 errors.
+- A sale produces an invoice with monotonically-increasing invoice_number.
+- Rapid double-call of completeSale in dev tools yields TWO distinct
+  invoice numbers (no duplicate UNIQUE failure).
+- Stock check still works (P1 guard untouched).
+- No regression in expenses, topups, transfers.
+
+Commits:
+  fix(concurrency): atomic sequence numbering via ON CONFLICT RETURNING
+  fix(concurrency): guarded stock decrement WHERE stock_qty >= ?
+  docs(concurrency): annotate atomic-by-design balance updates
+
+Push origin main.

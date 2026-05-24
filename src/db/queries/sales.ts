@@ -63,17 +63,16 @@ export async function completeSale(data: {
 
   const stmts: { sql: string; params: any[] }[] = [];
 
-  // 1. Get next invoice number
-  const seqResult = await dbClient.query("SELECT last_val FROM sequences WHERE name = 'invoice'");
-  let nextVal = 1;
-  if (seqResult.length > 0) nextVal = seqResult[0].last_val + 1;
+  // 1. Get next invoice number — atomic: ON CONFLICT increments and returns new value
+  const seqRow = await dbClient.query(
+    `INSERT INTO sequences (name, last_val) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
+     RETURNING last_val`,
+    ['invoice']
+  );
+  const nextVal = seqRow[0].last_val;
 
   const invoiceNumber = generateSequenceNumber('INV', nextVal - 1, 6);
-
-  stmts.push({
-    sql: "UPDATE sequences SET last_val = ? WHERE name = 'invoice'",
-    params: [nextVal],
-  });
 
   // 2. Create invoice
   stmts.push({
@@ -167,9 +166,13 @@ export async function completeSale(data: {
     }
 
     if (item.product.track_stock) {
+      // batchRun does not raise on zero-row UPDATEs; the P1 pre-fetch guard above
+      // is the effective safety net on a single tablet. The WHERE stock_qty >= ?
+      // condition is harmless and forward-compatible for multi-tablet use.
+      // Strict atomic enforcement comes with Supabase RPC in Phase 7.
       stmts.push({
-        sql: `UPDATE products SET stock_qty = stock_qty - ?, updated_at = ? WHERE id = ?`,
-        params: [item.quantity, now, item.product.id],
+        sql: `UPDATE products SET stock_qty = stock_qty - ?, updated_at = ? WHERE id = ? AND track_stock = 1 AND stock_qty >= ?`,
+        params: [item.quantity, now, item.product.id, item.quantity],
       });
     }
   }
@@ -187,6 +190,7 @@ export async function completeSale(data: {
       sql: `INSERT INTO invoice_payments (id, invoice_id, account_id, amount, fee_amount, updated_at, device_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       params: [paymentId, invoiceId, payment.accountId, payment.amount, feeAmount, now, deviceId],
     });
+    // Atomic: single-statement UPDATE inside SQLite transaction.
     stmts.push({
       sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
       params: [netAmount, now, payment.accountId],
@@ -356,6 +360,7 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
       sql: `INSERT INTO invoice_payments (id, invoice_id, account_id, amount, fee_amount, updated_at, device_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       params: [nanoid(), invoiceId, refund.accountId, -refund.amount, refundFee, now, deviceId],
     });
+    // Atomic: single-statement UPDATE inside SQLite transaction.
     stmts.push({
       sql: `UPDATE accounts SET balance = balance - ?, updated_at = ? WHERE id = ?`,
       params: [netRefund, now, refund.accountId],

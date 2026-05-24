@@ -59,18 +59,18 @@ export async function addJob(data: {
   const id = nanoid();
   const now = new Date().toISOString();
   const deviceId = getDeviceId();
-  // Get sequence
-  const seqResult = await dbClient.query("SELECT last_val FROM sequences WHERE name = 'maintenance'");
-  let nextVal = 1;
-  if (seqResult.length > 0) nextVal = seqResult[0].last_val + 1;
-  
+  // Get sequence — atomic: ON CONFLICT increments and returns new value
+  const seqRow = await dbClient.query(
+    `INSERT INTO sequences (name, last_val) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
+     RETURNING last_val`,
+    ['maintenance']
+  );
+  const nextVal = seqRow[0].last_val;
+
   const jobNumber = generateSequenceNumber('REP', nextVal - 1, 5);
   
   const stmts: {sql: string, params: any[]}[] = [];
-  stmts.push({
-    sql: "UPDATE sequences SET last_val = ? WHERE name = 'maintenance'",
-    params: [nextVal]
-  });
   
   stmts.push({
     sql: `INSERT INTO maintenance_jobs 
@@ -119,6 +119,7 @@ export async function updateJobStatus(id: string, status: MaintenanceJob['status
         sql: `UPDATE maintenance_jobs SET status = ?, updated_at = ?, delivered_at = ?, final_amount = ?, payment_account_id = ? WHERE id = ?`,
         params: [status, dateStr, dateStr, final_amount, payment_account_id, id]
       },
+      // Atomic: single-statement UPDATE inside SQLite transaction.
       {
         sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
         params: [final_amount, dateStr, payment_account_id]

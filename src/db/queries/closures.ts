@@ -141,6 +141,7 @@ export async function closeDay(
         );
       }
 
+      // Atomic: single-statement UPDATE inside SQLite transaction.
       tx.push({
         sql: `UPDATE accounts SET balance = ?, updated_at = ? WHERE id = ?`,
         params: [cc.actualCash, closedAt, cc.accountId],

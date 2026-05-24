@@ -156,23 +156,25 @@ export async function createTopup({
   const aResult = await dbClient.query("SELECT name FROM accounts WHERE id = ?", [account_id]);
   if (aResult.length > 0) account_name = aResult[0].name;
   
-  let nextVal = 1;
-  const seqResult = await dbClient.query("SELECT last_val FROM sequences WHERE name = 'topup'");
-  if (seqResult.length > 0) nextVal = seqResult[0].last_val + 1;
-  
+  // Atomic sequence: ON CONFLICT increments and returns new value
+  const topupSeqRow = await dbClient.query(
+    `INSERT INTO sequences (name, last_val) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
+     RETURNING last_val`,
+    ['topup']
+  );
+  const nextVal = topupSeqRow[0].last_val;
+
   const topupNumber = `TOP-${format(now, 'yyMM')}-${nextVal.toString().padStart(4, '0')}`;
   const topupId = nanoid();
 
   const tx = [
     {
-      sql: "UPDATE sequences SET last_val = ? WHERE name = 'topup'",
-      params: [nextVal]
-    },
-    {
       sql: `INSERT INTO topups (id, topup_number, topup_date, account_id, account_name, supplier_id, supplier_name, amount, cost, profit, notes, created_at, updated_at, device_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [topupId, topupNumber, dateStr, account_id, account_name, supplier_id || null, supplier_name, amount, cost, profit, notes || null, timestamp, timestamp, deviceId]
     },
+    // Atomic: single-statement UPDATE inside SQLite transaction.
     {
       sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
       params: [amount, timestamp, account_id]
@@ -235,23 +237,25 @@ export async function createTransfer({
     );
   }
 
-  let nextVal = 1;
-  const seqResult = await dbClient.query("SELECT last_val FROM sequences WHERE name = 'transfer'");
-  if (seqResult.length > 0) nextVal = seqResult[0].last_val + 1;
-  
+  // Atomic sequence: ON CONFLICT increments and returns new value
+  const transferSeqRow = await dbClient.query(
+    `INSERT INTO sequences (name, last_val) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
+     RETURNING last_val`,
+    ['transfer']
+  );
+  const nextVal = transferSeqRow[0].last_val;
+
   const transferNumber = `TRF-${format(now, 'yyMM')}-${nextVal.toString().padStart(4, '0')}`;
   const transferId = nanoid();
 
   const tx = [
     {
-      sql: "UPDATE sequences SET last_val = ? WHERE name = 'transfer'",
-      params: [nextVal]
-    },
-    {
       sql: `INSERT INTO transfers (id, transfer_number, transfer_date, from_account_id, from_account_name, to_account_id, to_account_name, amount, notes, created_at, updated_at, device_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [transferId, transferNumber, dateStr, from_account_id, from_account_name, to_account_id, to_account_name, amount, notes || null, timestamp, timestamp, deviceId]
     },
+    // Atomic: single-statement UPDATE inside SQLite transaction.
     {
       sql: `UPDATE accounts SET balance = balance - ?, updated_at = ? WHERE id = ?`,
       params: [amount, timestamp, from_account_id]
@@ -261,6 +265,7 @@ export async function createTransfer({
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [nanoid(), dateStr, from_account_id, from_account_name, 'debit', amount, 'transfer', transferId, `تحويل صادر: ${transferNumber}`, timestamp, timestamp, deviceId]
     },
+    // Atomic: single-statement UPDATE inside SQLite transaction.
     {
       sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
       params: [amount, timestamp, to_account_id]

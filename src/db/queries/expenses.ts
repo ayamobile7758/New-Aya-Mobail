@@ -88,19 +88,18 @@ export async function addExpense(data: {
   const now = new Date().toISOString();
   const deviceId = getDeviceId();
   
-  // Get sequence
-  const seqResult = await dbClient.query("SELECT last_val FROM sequences WHERE name = 'expense'");
-  let nextVal = 1;
-  if (seqResult.length > 0) nextVal = seqResult[0].last_val + 1;
-  
+  // Get sequence — atomic: ON CONFLICT increments and returns new value
+  const seqRow = await dbClient.query(
+    `INSERT INTO sequences (name, last_val) VALUES (?, 1)
+     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
+     RETURNING last_val`,
+    ['expense']
+  );
+  const nextVal = seqRow[0].last_val;
+
   const expenseNumber = generateSequenceNumber('EXP', nextVal - 1, 5);
 
   const stmts: {sql: string, params: any[]}[] = [];
-  
-  stmts.push({
-    sql: "UPDATE sequences SET last_val = ? WHERE name = 'expense'",
-    params: [nextVal]
-  });
 
   // 1. Create expense record
   stmts.push({
@@ -109,7 +108,7 @@ export async function addExpense(data: {
     params: [id, expenseNumber, amount, category_id, category_name, description, accountId, account_name, today, now, now, deviceId]
   });
   
-  // 2. Remove from account
+  // 2. Remove from account — Atomic: single-statement UPDATE inside SQLite transaction.
   stmts.push({
     sql: `UPDATE accounts SET balance = balance - ?, updated_at = ? WHERE id = ?`,
     params: [amount, now, accountId]
