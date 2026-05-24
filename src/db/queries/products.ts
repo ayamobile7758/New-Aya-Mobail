@@ -17,10 +17,11 @@ export interface Product {
   notes: string | null;
   image_path?: string | null;
   icon?: string;
+  deleted_at?: string | null;
 }
 
 export async function getActiveProducts(search?: string, category?: string): Promise<Product[]> {
-  let query = `SELECT * FROM products WHERE is_active = 1`;
+  let query = `SELECT * FROM products WHERE is_active = 1 AND deleted_at IS NULL`;
   const params: any[] = [];
   
   if (category && category !== 'all') {
@@ -51,7 +52,7 @@ export async function getAllProducts(search?: string, category?: string, showIna
   const params: any[] = [];
   
   if (!showInactive) {
-    query += ` AND is_active = 1`;
+    query += ` AND is_active = 1 AND deleted_at IS NULL`;
   }
   
   if (category && category !== 'all') {
@@ -80,7 +81,7 @@ export async function getAllProducts(search?: string, category?: string, showIna
 export async function getLowStockProducts(): Promise<Product[]> {
   const results = await dbClient.query(
     `SELECT * FROM products
-     WHERE is_active = 1 AND track_stock = 1 AND stock_qty <= min_stock
+     WHERE is_active = 1 AND deleted_at IS NULL AND track_stock = 1 AND stock_qty <= min_stock
      ORDER BY stock_qty ASC`,
     []
   );
@@ -184,11 +185,43 @@ export async function updateProduct(id: string, data: Partial<Omit<Product, 'id'
   }
 }
 
-export async function toggleProductActive(id: string, isActive: boolean) {
-  await dbClient.run(
-    `UPDATE products SET is_active = ?, updated_at = ? WHERE id = ?`,
-    [isActive ? 1 : 0, new Date().toISOString(), id]
+export async function getDeletedProducts(): Promise<Product[]> {
+  const results = await dbClient.query(
+    `SELECT * FROM products WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
   );
+  return results.map(row => ({
+    ...row,
+    cost_price: row.cost_price ?? 0,
+    track_stock: Boolean(row.track_stock),
+    is_quick_add: Boolean(row.is_quick_add),
+    is_active: Boolean(row.is_active),
+  }));
+}
+
+export async function restoreProduct(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  const rows = await dbClient.query(`SELECT name FROM products WHERE id = ?`, [id]);
+  const name = rows[0]?.name ?? id;
+  await dbClient.run(
+    `UPDATE products SET is_active = 1, deleted_at = NULL, updated_at = ? WHERE id = ?`,
+    [now, id]
+  );
+  await logAudit('استعادة_عنصر', name, 'product', id);
+}
+
+export async function toggleProductActive(id: string, isActive: boolean) {
+  const now = new Date().toISOString();
+  if (isActive) {
+    await dbClient.run(
+      `UPDATE products SET is_active = 1, deleted_at = NULL, updated_at = ? WHERE id = ?`,
+      [now, id]
+    );
+  } else {
+    await dbClient.run(
+      `UPDATE products SET is_active = 0, deleted_at = ?, updated_at = ? WHERE id = ?`,
+      [now, now, id]
+    );
+  }
   await logAudit(
     isActive ? 'تفعيل_منتج' : 'تعطيل_منتج',
     `المنتج ${id}`,

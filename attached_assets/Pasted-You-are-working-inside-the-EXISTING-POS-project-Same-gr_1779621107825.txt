@@ -1,0 +1,84 @@
+You are working inside the EXISTING POS project. Same ground rules.
+After each section: tsc clean, commit. Push at end.
+
+TASK: Use `deleted_at` consistently for soft-delete. Existing `is_active`
+stays (backward compatible). Default list queries exclude soft-deleted
+rows. Admin can restore.
+
+═══════════════════════════════════════════════════════════════
+SECTION P4D.1 — Set deleted_at on soft-delete paths
+═══════════════════════════════════════════════════════════════
+
+src/db/queries/products.ts → toggleProductActive:
+- When deactivating (isActive=false):
+    UPDATE products SET is_active = 0, deleted_at = ?, updated_at = ?
+  passing current ISO timestamp for both.
+- When reactivating (isActive=true):
+    UPDATE products SET is_active = 1, deleted_at = NULL, updated_at = ?
+
+src/db/queries/categories.ts → deleteCategory (or deactivateCategory):
+- UPDATE categories SET is_active = 0, deleted_at = ?, updated_at = ? WHERE id = ?
+
+src/db/queries/maintenance.ts → if there's a "delete" function:
+- Soft-delete via `deleted_at = ?` (don't actually DELETE the row).
+
+src/db/queries/expenses.ts → if there is a delete expense function
+(verify), use deleted_at.
+
+═══════════════════════════════════════════════════════════════
+SECTION P4D.2 — Filter deleted_at IS NULL in default list queries
+═══════════════════════════════════════════════════════════════
+
+Audit each list/active-query and add `AND deleted_at IS NULL`:
+
+  src/db/queries/products.ts
+    getActiveProducts → add deleted_at filter
+    getAllProducts (when showInactive=false) → add deleted_at filter
+
+  src/db/queries/categories.ts
+    getCategories(activeOnly=true) → add deleted_at filter
+
+  src/db/queries/expenses.ts
+    getExpenses → add deleted_at filter
+
+  src/db/queries/maintenance.ts
+    getJobs (default list) → add deleted_at filter
+
+  src/db/queries/accounts.ts
+    getActiveAccounts → add deleted_at filter
+
+DO NOT add the filter to:
+- getInvoiceWithItems / reports queries that need historical resolution
+- get<Product>ById lookups that need to resolve historical names
+
+═══════════════════════════════════════════════════════════════
+SECTION P4D.3 — Restore UI (admin only, minimal)
+═══════════════════════════════════════════════════════════════
+
+In SettingsPage, add a new tab or section "العناصر المحذوفة":
+- Three sub-lists: products, categories, expenses (and accounts +
+  maintenance if applicable).
+- Each row: name, deleted_at timestamp, "استعادة" button.
+- The list queries select WHERE deleted_at IS NOT NULL.
+- Restore action:
+    UPDATE <table> SET deleted_at = NULL, is_active = 1, updated_at = ?
+  wrapped in requireAdminAction. After restore, refresh list.
+- Add an audit entry: `logAudit('استعادة_عنصر', '<name>', '<table>', id)`.
+
+═══════════════════════════════════════════════════════════════
+ACCEPTANCE
+═══════════════════════════════════════════════════════════════
+- `npx tsc --noEmit` → 0 errors.
+- Deactivating a product sets BOTH is_active=0 AND deleted_at=timestamp.
+- Default product list excludes deleted products.
+- Historical invoices still resolve the product name (getProduct returns
+  even deleted rows).
+- "العناصر المحذوفة" section in Settings shows deleted entries; restore
+  works and is audit-logged.
+
+Commits:
+  feat(soft-delete): set deleted_at on deactivation paths
+  feat(soft-delete): default list queries filter deleted_at IS NULL
+  feat(admin): restore deleted items UI in Settings
+
+Push origin main.

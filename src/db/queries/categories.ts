@@ -13,10 +13,28 @@ export interface Category {
 
 export async function getCategories(activeOnly = false): Promise<Category[]> {
   const sql = activeOnly
-    ? `SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order ASC, name ASC`
+    ? `SELECT * FROM categories WHERE is_active = 1 AND deleted_at IS NULL ORDER BY sort_order ASC, name ASC`
     : `SELECT * FROM categories ORDER BY sort_order ASC, name ASC`;
   const rows = await dbClient.query(sql);
   return rows.map((r: any) => ({ ...r, is_active: r.is_active === 1 }));
+}
+
+export async function getDeletedCategories(): Promise<Category[]> {
+  const rows = await dbClient.query(
+    `SELECT * FROM categories WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+  );
+  return rows.map((r: any) => ({ ...r, is_active: r.is_active === 1 }));
+}
+
+export async function restoreCategory(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  const rows = await dbClient.query(`SELECT name FROM categories WHERE id = ?`, [id]);
+  const name = rows[0]?.name ?? id;
+  await dbClient.run(
+    `UPDATE categories SET is_active = 1, deleted_at = NULL, updated_at = ? WHERE id = ?`,
+    [now, id]
+  );
+  await logAudit('استعادة_عنصر', name, 'category', id);
 }
 
 export async function addCategory(data: {
@@ -68,6 +86,10 @@ export async function deleteCategory(id: string): Promise<void> {
   }
   const catRows = await dbClient.query(`SELECT name FROM categories WHERE id = ?`, [id]);
   const catName = catRows[0]?.name ?? id;
-  await dbClient.run(`DELETE FROM categories WHERE id = ?`, [id]);
+  const now = new Date().toISOString();
+  await dbClient.run(
+    `UPDATE categories SET is_active = 0, deleted_at = ?, updated_at = ? WHERE id = ?`,
+    [now, now, id]
+  );
   await logAudit('حذف_فئة', catName, 'category', id);
 }

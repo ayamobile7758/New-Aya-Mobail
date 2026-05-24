@@ -26,7 +26,7 @@ export interface MaintenanceJob {
 }
 
 export async function getJobs(status?: string, keyword?: string): Promise<MaintenanceJob[]> {
-  let query = 'SELECT * FROM maintenance_jobs WHERE 1=1';
+  let query = 'SELECT * FROM maintenance_jobs WHERE deleted_at IS NULL';
   const params: any[] = [];
   
   if (status && status !== 'all') {
@@ -140,4 +140,25 @@ export async function updateJobStatus(id: string, status: MaintenanceJob['status
       [status, dateStr, id]
     );
   }
+}
+
+export async function getDeletedJobs(): Promise<MaintenanceJob[]> {
+  const results = await dbClient.query(
+    `SELECT * FROM maintenance_jobs WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+  );
+  return results as MaintenanceJob[];
+}
+
+export async function restoreJob(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  const rows = await dbClient.query(
+    `SELECT job_number, customer_name FROM maintenance_jobs WHERE id = ?`,
+    [id]
+  );
+  const label = rows[0] ? `${rows[0].job_number} — ${rows[0].customer_name}` : id;
+  await dbClient.run(
+    `UPDATE maintenance_jobs SET deleted_at = NULL, updated_at = ? WHERE id = ?`,
+    [now, id]
+  );
+  await logAudit('استعادة_عنصر', label, 'maintenance', id);
 }

@@ -9,7 +9,10 @@ import { changeDailyLock, changeAdminPin } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
 import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audit';
 import { getDeviceId, getDeviceName, setDeviceName } from '@/lib/device';
-import { getCategories, addCategory, updateCategory, deleteCategory, Category } from '@/db/queries/categories';
+import { getCategories, addCategory, updateCategory, deleteCategory, Category, getDeletedCategories, restoreCategory } from '@/db/queries/categories';
+import { getDeletedProducts, restoreProduct } from '@/db/queries/products';
+import { getDeletedAccounts, restoreAccount } from '@/db/queries/accounts';
+import { getDeletedJobs, restoreJob } from '@/db/queries/maintenance';
 import { format, parseISO } from 'date-fns';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -34,6 +37,7 @@ const ACTION_LABELS: Record<string, string> = {
   'تحويل_جديد': 'تحويل جديد',
   'جرد_مخزون': 'جرد مخزون',
   'تسوية_حساب': 'تسوية حساب',
+  'استعادة_عنصر': 'استعادة عنصر',
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -58,6 +62,7 @@ const ACTION_COLORS: Record<string, string> = {
   'تحويل_جديد': 'bg-accent/10 text-accent',
   'جرد_مخزون': 'bg-warning/10 text-warning',
   'تسوية_حساب': 'bg-warning/10 text-warning',
+  'استعادة_عنصر': 'bg-success/10 text-success',
 };
 
 interface CategoryForm {
@@ -70,7 +75,7 @@ interface CategoryForm {
 const EMPTY_CAT_FORM: CategoryForm = { name: '', color: '#CF694A', icon: 'Box', sort_order: '0' };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit' | 'categories'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit' | 'categories' | 'trash'>('general');
   const { settings, updateSettings } = useSettingsStore();
   const qc = useQueryClient();
 
@@ -229,6 +234,69 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['categories'] });
       refetchCats();
       toast.success('تم حذف الفئة');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Trash / Restore queries
+  const { data: deletedProducts = [], refetch: refetchDelProducts } = useQuery({
+    queryKey: ['deleted_products'],
+    queryFn: getDeletedProducts,
+    enabled: activeTab === 'trash',
+  });
+  const { data: deletedCategories = [], refetch: refetchDelCats } = useQuery({
+    queryKey: ['deleted_categories'],
+    queryFn: getDeletedCategories,
+    enabled: activeTab === 'trash',
+  });
+  const { data: deletedAccounts = [], refetch: refetchDelAccounts } = useQuery({
+    queryKey: ['deleted_accounts'],
+    queryFn: getDeletedAccounts,
+    enabled: activeTab === 'trash',
+  });
+  const { data: deletedJobs = [], refetch: refetchDelJobs } = useQuery({
+    queryKey: ['deleted_jobs'],
+    queryFn: getDeletedJobs,
+    enabled: activeTab === 'trash',
+  });
+
+  const restoreProductMutation = useMutation({
+    mutationFn: (id: string) => restoreProduct(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deleted_products'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+      refetchDelProducts();
+      toast.success('تمت استعادة المنتج');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const restoreCategoryMutation = useMutation({
+    mutationFn: (id: string) => restoreCategory(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deleted_categories'] });
+      qc.invalidateQueries({ queryKey: ['categories'] });
+      refetchDelCats();
+      toast.success('تمت استعادة الفئة');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const restoreAccountMutation = useMutation({
+    mutationFn: (id: string) => restoreAccount(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deleted_accounts'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      refetchDelAccounts();
+      toast.success('تمت استعادة الحساب');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const restoreJobMutation = useMutation({
+    mutationFn: (id: string) => restoreJob(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deleted_jobs'] });
+      qc.invalidateQueries({ queryKey: ['maintenance_jobs'] });
+      refetchDelJobs();
+      toast.success('تمت استعادة مهمة الصيانة');
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -445,6 +513,18 @@ export default function SettingsPage() {
             >
               <Tag className="w-5 h-5" />
               إدارة الفئات
+            </button>
+            <button
+              onClick={() => setActiveTab('trash')}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors text-start",
+                activeTab === 'trash'
+                  ? "bg-accent text-white shadow-sm"
+                  : "bg-surface text-text-secondary hover:bg-muted"
+              )}
+            >
+              <Trash2 className="w-5 h-5" />
+              العناصر المحذوفة
             </button>
           </div>
 
@@ -1008,6 +1088,175 @@ export default function SettingsPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'trash' && (
+              <div className="space-y-6 animate-in fade-in">
+                <h2 className="text-xl font-bold flex items-center gap-2 mb-4" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                  <Trash2 className="w-6 h-6 text-accent" /> العناصر المحذوفة
+                </h2>
+                <p className="text-sm text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                  العناصر المدرجة هنا محذوفة بشكل مؤقت. يمكن استعادتها في أي وقت.
+                </p>
+
+                {/* Deleted Products */}
+                <div>
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>المنتجات</h3>
+                  {deletedProducts.length === 0 ? (
+                    <p className="text-sm text-text-secondary px-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>لا توجد منتجات محذوفة</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted text-text-secondary">
+                          <tr>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>الاسم</th>
+                            <th className="px-4 py-3 text-start whitespace-nowrap" style={{ fontFamily: 'Tajawal, sans-serif' }}>تاريخ الحذف</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {deletedProducts.map(p => (
+                            <tr key={p.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 font-medium" style={{ fontFamily: 'Tajawal, sans-serif' }}>{p.name}</td>
+                              <td className="px-4 py-3 text-text-secondary whitespace-nowrap numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
+                                {p.deleted_at ? format(parseISO(p.deleted_at), 'yyyy-MM-dd HH:mm') : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => requireAdminAction(() => restoreProductMutation.mutate(p.id))}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                                >
+                                  استعادة
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Deleted Categories */}
+                <div>
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>الفئات</h3>
+                  {deletedCategories.length === 0 ? (
+                    <p className="text-sm text-text-secondary px-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>لا توجد فئات محذوفة</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted text-text-secondary">
+                          <tr>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>الاسم</th>
+                            <th className="px-4 py-3 text-start whitespace-nowrap" style={{ fontFamily: 'Tajawal, sans-serif' }}>تاريخ الحذف</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {deletedCategories.map(c => (
+                            <tr key={c.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 font-medium" style={{ fontFamily: 'Tajawal, sans-serif' }}>{c.name}</td>
+                              <td className="px-4 py-3 text-text-secondary whitespace-nowrap numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
+                                {(c as any).deleted_at ? format(parseISO((c as any).deleted_at), 'yyyy-MM-dd HH:mm') : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => requireAdminAction(() => restoreCategoryMutation.mutate(c.id))}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                                >
+                                  استعادة
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Deleted Accounts */}
+                <div>
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>الحسابات</h3>
+                  {deletedAccounts.length === 0 ? (
+                    <p className="text-sm text-text-secondary px-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>لا توجد حسابات محذوفة</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted text-text-secondary">
+                          <tr>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>الاسم</th>
+                            <th className="px-4 py-3 text-start whitespace-nowrap" style={{ fontFamily: 'Tajawal, sans-serif' }}>تاريخ الحذف</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {deletedAccounts.map(a => (
+                            <tr key={a.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 font-medium" style={{ fontFamily: 'Tajawal, sans-serif' }}>{a.name}</td>
+                              <td className="px-4 py-3 text-text-secondary whitespace-nowrap numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
+                                {(a as any).deleted_at ? format(parseISO((a as any).deleted_at), 'yyyy-MM-dd HH:mm') : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => requireAdminAction(() => restoreAccountMutation.mutate(a.id))}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                                >
+                                  استعادة
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Deleted Maintenance Jobs */}
+                <div>
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>مهام الصيانة</h3>
+                  {deletedJobs.length === 0 ? (
+                    <p className="text-sm text-text-secondary px-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>لا توجد مهام صيانة محذوفة</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted text-text-secondary">
+                          <tr>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>رقم المهمة</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>العميل</th>
+                            <th className="px-4 py-3 text-start whitespace-nowrap" style={{ fontFamily: 'Tajawal, sans-serif' }}>تاريخ الحذف</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {deletedJobs.map(j => (
+                            <tr key={j.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 font-medium numeric" style={{ fontFamily: 'Inter, sans-serif' }}>{j.job_number}</td>
+                              <td className="px-4 py-3" style={{ fontFamily: 'Tajawal, sans-serif' }}>{j.customer_name}</td>
+                              <td className="px-4 py-3 text-text-secondary whitespace-nowrap numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
+                                {(j as any).deleted_at ? format(parseISO((j as any).deleted_at), 'yyyy-MM-dd HH:mm') : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => requireAdminAction(() => restoreJobMutation.mutate(j.id))}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                                >
+                                  استعادة
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

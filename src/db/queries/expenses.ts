@@ -135,17 +135,17 @@ export async function addExpense(data: {
 }
 
 export async function getFilteredExpenses(startDate?: string, endDate?: string, limit: number | null = 100): Promise<Expense[]> {
-  let query = `SELECT * FROM expenses`;
+  let query = `SELECT * FROM expenses WHERE deleted_at IS NULL`;
   const params: any[] = [];
   
   if (startDate && endDate) {
-    query += ` WHERE expense_date BETWEEN ? AND ?`;
+    query += ` AND expense_date BETWEEN ? AND ?`;
     params.push(startDate, endDate);
   } else if (startDate) {
-    query += ` WHERE expense_date >= ?`;
+    query += ` AND expense_date >= ?`;
     params.push(startDate);
   } else if (endDate) {
-    query += ` WHERE expense_date <= ?`;
+    query += ` AND expense_date <= ?`;
     params.push(endDate);
   }
   
