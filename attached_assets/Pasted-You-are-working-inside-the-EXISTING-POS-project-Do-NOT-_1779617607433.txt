@@ -1,0 +1,73 @@
+You are working inside the EXISTING POS project. Do NOT create a new project.
+
+GROUND RULES — same as before. Single-file change. After: `npx tsc --noEmit`
+clean, commit, push.
+
+TASK: Fix the ProductEditor toggle switch direction in RTL — one missed
+item from prompt 3.A section SA5.
+
+═══════════════════════════════════════════════════════════════
+THE BUG
+═══════════════════════════════════════════════════════════════
+File: src/modules/products/components/ProductEditor.tsx
+Lines: 267 and 307 (the two toggle switches: "تتبع المخزون" and "إضافة
+سريعة (POS)").
+
+Both currently use the same broken pattern:
+
+  <div className="w-11 h-6 bg-muted ... peer
+                  peer-checked:after:-translate-x-full
+                  peer-checked:after:border-white
+                  after:content-[''] after:absolute after:top-[2px]
+                  after:end-[2px] after:bg-white ...
+                  peer-checked:bg-accent">
+  </div>
+
+In RTL, the knob starts at logical-end (= visual-left), and
+`peer-checked:after:-translate-x-full` translates it further left — off
+screen. The knob moves in the wrong direction.
+
+═══════════════════════════════════════════════════════════════
+THE FIX
+═══════════════════════════════════════════════════════════════
+The cleanest, lowest-risk fix is to force the toggle WIDGET to use LTR
+internally. The toggle's visual convention (knob on the right when ON)
+matches user expectations across all common apps regardless of page
+direction. The surrounding label text remains RTL.
+
+For BOTH toggles (the two instances around lines 267 and 307):
+
+1. Wrap the toggle `<div>` with `dir="ltr"` to override the inherited
+   RTL direction just for the toggle widget.
+
+   Example — change:
+
+     <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:end-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+
+   to:
+
+     <div dir="ltr" className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+
+   Two changes inside the className:
+   - `after:end-[2px]`  →  `after:start-[2px]`
+     (knob starts at logical-start of the LTR-forced widget = visual-left)
+   - `peer-checked:after:-translate-x-full`  →  `peer-checked:after:translate-x-full`
+     (positive X moves the knob rightward when checked)
+
+2. Apply this exact change to BOTH toggle widgets (the track_stock toggle
+   and the is_quick_add toggle).
+
+3. Do NOT touch the surrounding label / parent container direction. Only
+   the toggle widget gets `dir="ltr"`.
+
+═══════════════════════════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════════════════════════
+- `npx tsc --noEmit` → 0 errors.
+- Open the product editor in the Arabic (RTL) app. Both toggles:
+  - Unchecked: knob visible on the LEFT (`start-[2px]` inside `dir="ltr"`).
+  - Checked: knob slides to the RIGHT (positive `translate-x-full`).
+- The toggle animates smoothly; no visual glitch.
+
+Commit: `fix(rtl): product editor toggles slide in correct direction`
+Then `git push origin main`.
