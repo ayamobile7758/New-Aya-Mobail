@@ -38,14 +38,20 @@ export async function runMigrations() {
     if (migration.version > currentVersion) {
       console.log(`Running migration ${migration.version}...`);
       try {
-        // Execute migration as a single script
-        // Note: SQLite exec() supports multiple statements separated by ';'
-        await dbClient.run(migration.sql);
+        // Wrap each migration in a transaction so a mid-script failure rolls
+        // back all statements and leaves the version unchanged.
+        // PRAGMA user_version is set both inside the SQL file (if present)
+        // and explicitly here to guarantee consistency.
+        await dbClient.run(
+          `BEGIN TRANSACTION;\n${migration.sql}\nPRAGMA user_version = ${migration.version};\nCOMMIT;`
+        );
+        // Keep setVersion call for any code that uses dbClient.getVersion()
         await dbClient.setVersion(migration.version);
         console.log(`Migration ${migration.version} applied successfully.`);
       } catch (err) {
+        try { await dbClient.run('ROLLBACK;'); } catch (_) {}
         console.error(`Migration ${migration.version} failed:`, err);
-        throw err; // Stop application on migration failure
+        throw err;
       }
     }
   }

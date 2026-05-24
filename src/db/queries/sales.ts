@@ -15,25 +15,25 @@ export async function completeSale(data: {
 }) {
   const { cartItems, subtotal, totalDiscount, totalAmount, payments } = data;
 
-  // ── P1: منع المخزون السالب ──────────────────────────────────────
-  const trackedItems = cartItems.filter(item => item.product.track_stock);
-  if (trackedItems.length > 0) {
-    const ids = trackedItems.map(item => item.product.id);
-    const stocks = await dbClient.query(
-      `SELECT id, name, stock_qty FROM products WHERE id IN (${ids.map(() => '?').join(',')})`,
-      ids
-    );
-    const stockMap = new Map<string, { name: string; stock_qty: number }>(
-      stocks.map((s: any) => [s.id, { name: s.name, stock_qty: s.stock_qty }])
-    );
-    for (const item of trackedItems) {
-      const stock = stockMap.get(item.product.id);
-      const available = stock?.stock_qty ?? 0;
-      if (item.quantity > available) {
-        throw new Error(
-          `الكمية غير متوفرة للمنتج ${item.product.name} (المتاح: ${available})`
-        );
-      }
+  // ── P1: التحقق من المنتجات (نشاط + مخزون) ──────────────────────
+  const allIds = cartItems.map(item => item.product.id);
+  const allProducts = await dbClient.query(
+    `SELECT id, name, stock_qty, track_stock, is_active FROM products WHERE id IN (${allIds.map(() => '?').join(',')})`,
+    allIds
+  );
+  const productMap = new Map<string, { name: string; stock_qty: number; track_stock: number; is_active: number }>(
+    allProducts.map((p: any) => [p.id, p])
+  );
+  for (const item of cartItems) {
+    const p = productMap.get(item.product.id);
+    if (!p) throw new Error(`المنتج غير موجود: ${item.product.name}`);
+    if (p.is_active !== 1) {
+      throw new Error(`المنتج لم يعد متوفراً: ${p.name}`);
+    }
+    if (p.track_stock && item.quantity > p.stock_qty) {
+      throw new Error(
+        `الكمية غير متوفرة للمنتج ${p.name} (المتاح: ${p.stock_qty})`
+      );
     }
   }
   // ───────────────────────────────────────────────────────────────

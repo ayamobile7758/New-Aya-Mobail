@@ -1,0 +1,123 @@
+You are working inside the EXISTING POS project. Do NOT create a new project.
+
+GROUND RULES — same as before. READ before editing. NEVER assume. DO NOT
+touch unrelated code. After each section: tsc clean, then commit.
+
+TASK: Three correctness fixes — atomic migrations, no double-delivery on
+maintenance, reject sale of deactivated products.
+
+═══════════════════════════════════════════════════════════════
+SECTION C1 — Atomic migration execution  (audit: F1-05)
+═══════════════════════════════════════════════════════════════
+File: src/db/migrations/index.ts  →  runMigrations function.
+
+Current behavior: each migration is executed by
+`await dbClient.run(migration.sql)`. If a multi-statement SQL fails midway,
+the partially-applied statements persist, version is NOT updated, and the
+next startup re-runs the migration — which usually fails on "table already
+exists" and leaves the DB unusable.
+
+Required change:
+1. Wrap each migration execution in a transaction that includes the
+   setVersion call. Pseudocode:
+
+     for (const migration of migrations) {
+       if (migration.version > currentVersion) {
+         try {
+           await dbClient.run('BEGIN TRANSACTION');
+           await dbClient.run(migration.sql);
+           // setVersion is via PRAGMA user_version — include INSIDE tx
+           await dbClient.run(`PRAGMA user_version = ${migration.version}`);
+           await dbClient.run('COMMIT');
+         } catch (err) {
+           try { await dbClient.run('ROLLBACK'); } catch (_) {}
+           console.error(`Migration ${migration.version} failed:`, err);
+           throw err;
+         }
+       }
+     }
+
+2. IMPORTANT: some existing migration .sql files already contain `PRAGMA
+   user_version = N;` at the top. That's fine — it'll be executed inside
+   the transaction. The explicit `PRAGMA user_version = ${version}` after
+   the SQL ensures the version is set even if the file forgets to.
+3. Verify SQLite-WASM supports `BEGIN TRANSACTION` over multi-statement
+   exec. If `dbClient.run` cannot handle a standalone BEGIN/COMMIT, use
+   the multi-statement form in a single call:
+     await dbClient.run(`BEGIN TRANSACTION; ${migration.sql};
+                         PRAGMA user_version = ${v}; COMMIT;`);
+4. Keep `dbClient.setVersion(...)` for compatibility if other code uses it.
+
+═══════════════════════════════════════════════════════════════
+SECTION C2 — Maintenance: prevent double-delivery  (audit: F1-06)
+═══════════════════════════════════════════════════════════════
+File: src/db/queries/maintenance.ts  →  updateJobStatus function.
+
+Current behavior: when `status === 'delivered'`, the function unconditionally
+credits the account and inserts a ledger entry. Calling it twice with
+'delivered' for the same job DOUBLES the credit.
+
+Required changes:
+1. At the start of the `if (status === 'delivered')` block, fetch the
+   current status:
+     const current = await dbClient.query(
+       'SELECT status FROM maintenance_jobs WHERE id = ?', [id]);
+     if (!current.length) throw new Error('المهمة غير موجودة');
+     if (current[0].status === 'delivered') {
+       throw new Error('تم تسليم هذه المهمة مسبقاً');
+     }
+2. Continue with the existing batch (the read above is outside the batch,
+   so there is still a race window with concurrent calls; that race is
+   acceptable for now — proper atomic fix lives in Phase 4).
+3. After the batchRun succeeds, call:
+     await logAudit('تسليم_صيانة',
+       `تسليم مهمة ${job_number} بمبلغ ${formatMoney(final_amount)}`,
+       'maintenance', id);
+   Import logAudit from '@/db/queries/audit' and formatMoney from
+   '@/lib/money' if not already imported.
+
+═══════════════════════════════════════════════════════════════
+SECTION C3 — completeSale rejects deactivated products  (audit: F1-09)
+═══════════════════════════════════════════════════════════════
+File: src/db/queries/sales.ts  →  completeSale, the pre-sale checks
+section (around lines 17-37).
+
+Current behavior: pre-fetch only queries tracked products and only checks
+stock. A product that has been deactivated (is_active = 0) can still be
+sold if it was already in the cart.
+
+Required changes:
+1. Pre-fetch ALL products in the cart (not just tracked), and include
+   is_active:
+     const allIds = cartItems.map(item => item.product.id);
+     const allProducts = await dbClient.query(
+       `SELECT id, name, stock_qty, track_stock, is_active
+        FROM products WHERE id IN (${allIds.map(() => '?').join(',')})`,
+       allIds
+     );
+     const productMap = new Map(allProducts.map(p => [p.id, p]));
+2. For every cart item:
+     const p = productMap.get(item.product.id);
+     if (!p) throw new Error(`المنتج غير موجود: ${item.product.name}`);
+     if (p.is_active !== 1) {
+       throw new Error(`المنتج لم يعد متوفراً: ${p.name}`);
+     }
+3. The existing stock check (for tracked items) continues using this same
+   productMap — do not duplicate the query.
+
+═══════════════════════════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════════════════════════
+- `npx tsc --noEmit` → 0 errors.
+- Migrations: simulate a failure by intentionally breaking the next
+  migration locally → confirm DB rolls back fully and version is NOT
+  updated. Revert the deliberate break.
+- Maintenance: marking a job as 'delivered' twice — second call throws
+  the Arabic error and does NOT credit the account again. Audit log shows
+  the delivery entry.
+- Sale: deactivate a product, then try to complete a sale that includes
+  it (from a stale cart) — sale is rejected with a clear Arabic message.
+  Reactivating the product allows the sale.
+
+Commit: `fix(integrity): atomic migrations + maintenance double-delivery guard + is_active sale check`
+Then `git push origin main`.

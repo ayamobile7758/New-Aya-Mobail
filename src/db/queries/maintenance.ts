@@ -2,6 +2,8 @@ import { dbClient } from '../client';
 import { nanoid } from 'nanoid';
 import { generateSequenceNumber } from '@/lib/utils';
 import { format } from 'date-fns';
+import { logAudit } from './audit';
+import { formatMoney } from '@/lib/money';
 
 export interface MaintenanceJob {
   id: string;
@@ -93,9 +95,15 @@ export async function updateJobStatus(id: string, status: MaintenanceJob['status
     if (final_amount === undefined || !payment_account_id) {
         throw new Error('Final amount and account are required for delivery');
     }
-    
-    const jobResult = await dbClient.query("SELECT job_number FROM maintenance_jobs WHERE id = ?", [id]);
-    const job_number = jobResult[0]?.job_number || '';
+
+    // منع التسليم المزدوج
+    const current = await dbClient.query('SELECT status, job_number FROM maintenance_jobs WHERE id = ?', [id]);
+    if (!current.length) throw new Error('المهمة غير موجودة');
+    if (current[0].status === 'delivered') {
+      throw new Error('تم تسليم هذه المهمة مسبقاً');
+    }
+
+    const job_number = current[0].job_number || '';
     
     const accountResult = await dbClient.query("SELECT name FROM accounts WHERE id = ?", [payment_account_id]);
     const account_name = accountResult[0]?.name || null;
@@ -116,6 +124,8 @@ export async function updateJobStatus(id: string, status: MaintenanceJob['status
       }
     ];
     await dbClient.batchRun(tx);
+
+    await logAudit('تسليم_صيانة', `تسليم مهمة ${job_number} بمبلغ ${formatMoney(final_amount)}`, 'maintenance', id);
   } else {
     // Other statuses don't need financial transactions
     await dbClient.run(
