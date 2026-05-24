@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { DiscountsGiftsTab } from './DiscountsGiftsTab';
+import { ProfitLossTab } from './ProfitLossTab';
 
 const ReactECharts = lazy(() => import('echarts-for-react'));
 
@@ -61,7 +62,7 @@ function KpiCard({
   );
 }
 
-type Tab = 'overview' | 'categories' | 'products' | 'daily' | 'expenses' | 'discounts';
+type Tab = 'overview' | 'categories' | 'products' | 'daily' | 'expenses' | 'discounts' | 'pnl';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>('month');
@@ -107,12 +108,13 @@ export default function ReportsPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
-    { id: 'overview', label: 'نظرة عامة', icon: Target },
-    { id: 'categories', label: 'الفئات', icon: PieChartIcon },
-    { id: 'products', label: 'المنتجات', icon: Package },
-    { id: 'daily', label: 'يومي', icon: Calendar },
-    { id: 'expenses', label: 'المصاريف', icon: TrendingDown },
-    { id: 'discounts', label: 'الخصومات والهدايا', icon: Tag },
+    { id: 'overview',   label: 'نظرة عامة',         icon: Target },
+    { id: 'categories', label: 'الفئات',             icon: PieChartIcon },
+    { id: 'products',   label: 'المنتجات',           icon: Package },
+    { id: 'daily',      label: 'يومي',               icon: Calendar },
+    { id: 'expenses',   label: 'المصاريف',           icon: TrendingDown },
+    { id: 'discounts',  label: 'الخصومات والهدايا', icon: Tag },
+    { id: 'pnl',        label: 'الأرباح والخسائر',  icon: TrendingUp },
   ];
 
   const kpi = report?.kpi;
@@ -232,8 +234,8 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Period picker */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 flex-wrap">
+          {/* Period picker — hidden for P&L tab (it manages its own period) */}
+          <div className={cn('flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 flex-wrap', activeTab === 'pnl' && 'hidden')}>
             {([
               { id: 'today', label: 'اليوم' },
               { id: 'week', label: 'هذا الأسبوع' },
@@ -568,6 +570,13 @@ export default function ReportsPage() {
               )}
             </>
           ) : null}
+
+          {/* ══ P&L TAB ════════════════════════════════════════════════════ */}
+          {activeTab === 'pnl' && (
+            <div className="animate-in fade-in">
+              <ProfitLossTab />
+            </div>
+          )}
         </div>
       </main>
     </div>

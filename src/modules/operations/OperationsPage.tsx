@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRecentLedgerEntries, getDailySummary } from '@/db/queries/operations';
+import { getDailySummary, getLedgerForPeriod, type LedgerRow } from '@/db/queries/operations';
 import { isDayClosed, getDayClosures, reopenDay, type DayClosureSnapshot } from '@/db/queries/closures';
 import { formatMoney } from '@/lib/money';
 import {
   ArrowDownRight, ArrowUpRight, ArrowRightLeft, PlusCircle,
   Lock, LockOpen, CheckCircle2, History, TrendingUp, TrendingDown,
-  Receipt, Package, Tag, Gift, DollarSign,
+  Receipt, Package, Tag, Gift, DollarSign, Download, FileSpreadsheet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { TopupDialog } from './components/TopupDialog';
 import { TransferDialog } from './components/TransferDialog';
 import { EODCloseDialog } from './components/EODCloseDialog';
@@ -26,6 +26,8 @@ export default function OperationsPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('ledger');
   const [date, setDate] = useState(today);
+  const [ledgerFrom, setLedgerFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [ledgerTo, setLedgerTo] = useState(today);
   const [isTopupOpen, setIsTopupOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isEODOpen, setIsEODOpen] = useState(false);
@@ -36,9 +38,59 @@ export default function OperationsPage() {
   });
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['ledger-entries'],
-    queryFn: () => getRecentLedgerEntries(100),
+    queryKey: ['ledger-period', ledgerFrom, ledgerTo],
+    queryFn: () => getLedgerForPeriod(ledgerFrom, ledgerTo),
+    enabled: activeTab === 'ledger',
   });
+
+  const exportCSV = useCallback(() => {
+    if (!entries.length) { toast.error('لا توجد بيانات للتصدير'); return; }
+    const BOM = '\uFEFF';
+    const header = ['التاريخ', 'تاريخ القيد', 'الحساب', 'نوع الحساب', 'الاتجاه', 'المبلغ (بالدينار)', 'المرجع', 'الوصف'];
+    const dirLabel = (d: string) => d === 'credit' ? 'دائن' : 'مدين';
+    const rows = (entries as LedgerRow[]).map(r => [
+      r.entry_date,
+      r.created_at,
+      r.account_name ?? '',
+      r.account_type ?? '',
+      dirLabel(r.direction),
+      (r.amount / 100).toFixed(2),
+      r.ref_type ? `${r.ref_type}/${r.ref_id ?? ''}` : '',
+      r.description,
+    ]);
+    const csv = BOM + [header, ...rows].map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ledger_${ledgerFrom}_to_${ledgerTo}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, [entries, ledgerFrom, ledgerTo]);
+
+  const exportXLSX = useCallback(async () => {
+    if (!entries.length) { toast.error('لا توجد بيانات للتصدير'); return; }
+    try {
+      const XLSX = (await import('xlsx')).default;
+      const dirLabel = (d: string) => d === 'credit' ? 'دائن' : 'مدين';
+      const rows = (entries as LedgerRow[]).map(r => ({
+        'التاريخ':          r.entry_date,
+        'تاريخ القيد':      r.created_at,
+        'الحساب':           r.account_name ?? '',
+        'نوع الحساب':       r.account_type ?? '',
+        'الاتجاه':          dirLabel(r.direction),
+        'المبلغ (بالدينار)': parseFloat((r.amount / 100).toFixed(2)),
+        'المرجع':           r.ref_type ? `${r.ref_type}/${r.ref_id ?? ''}` : '',
+        'الوصف':            r.description,
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'سجل القيود');
+      XLSX.writeFile(wb, `ledger_${ledgerFrom}_to_${ledgerTo}.xlsx`);
+    } catch {
+      toast.error('فشل تصدير Excel');
+    }
+  }, [entries, ledgerFrom, ledgerTo]);
 
   const { data: todayClosed = false, refetch: refetchTodayStatus } = useQuery({
     queryKey: ['day-status', today],
@@ -183,10 +235,44 @@ export default function OperationsPage() {
                 </div>
               )}
 
+              {/* ── Ledger filter + export row ── */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-xl">
+                  <input type="date" value={ledgerFrom} dir="ltr"
+                    onChange={e => setLedgerFrom(e.target.value)}
+                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer" />
+                  <span className="text-text-secondary text-xs">←</span>
+                  <input type="date" value={ledgerTo} dir="ltr"
+                    onChange={e => setLedgerTo(e.target.value)}
+                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer" />
+                </div>
+                <button
+                  onClick={exportCSV}
+                  disabled={isLoading}
+                  className="h-9 px-3 bg-surface border border-border text-sm font-medium rounded-xl hover:border-accent transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                >
+                  <Download className="w-4 h-4 text-accent" />
+                  تصدير CSV
+                </button>
+                <button
+                  onClick={exportXLSX}
+                  disabled={isLoading}
+                  className="h-9 px-3 bg-success text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  تصدير Excel
+                </button>
+                <span className="text-xs text-text-secondary ms-1" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                  {isLoading ? '...' : `${entries.length} قيد`}
+                </span>
+              </div>
+
               <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-border flex items-center gap-2">
                   <ArrowRightLeft className="w-5 h-5 text-accent" />
-                  <h2 className="font-bold text-lg" style={{ fontFamily: 'Tajawal, sans-serif' }}>سجل العمليات الأخير</h2>
+                  <h2 className="font-bold text-lg" style={{ fontFamily: 'Tajawal, sans-serif' }}>سجل القيود المالية</h2>
                 </div>
 
                 {isLoading ? (
@@ -195,12 +281,12 @@ export default function OperationsPage() {
                   </div>
                 ) : entries.length === 0 ? (
                   <div className="p-12 text-center text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                    لا توجد حركات مالية مسجلة بعد.
+                    لا توجد حركات مالية في هذه الفترة.
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
-                    {entries.map(entry => {
-                      const isCredit = entry.type === 'credit';
+                    {(entries as LedgerRow[]).map(entry => {
+                      const isCredit = entry.direction === 'credit';
                       return (
                         <div key={entry.id} className="p-4 hover:bg-muted/30 transition-colors flex justify-between items-center gap-4">
                           <div className="flex items-start gap-3">

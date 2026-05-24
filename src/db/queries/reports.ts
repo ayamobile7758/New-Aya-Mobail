@@ -211,3 +211,108 @@ export async function getReport(fromDate: string, toDate: string) {
 }
 
 export type ReportData = Awaited<ReturnType<typeof getReport>>;
+
+// ── P&L ──────────────────────────────────────────────────────────────────────
+export interface ProfitAndLoss {
+  sales_gross: number;
+  returns_total: number;
+  sales_net: number;
+  cogs: number;
+  gross_profit: number;
+  expenses_total: number;
+  expenses_by_category: { category_name: string; total: number }[];
+  topup_profit: number;
+  maintenance_revenue: number;
+  other_income: number;
+  net_profit: number;
+  period: { fromDate: string; toDate: string };
+}
+
+export async function getProfitAndLoss(fromDate: string, toDate: string): Promise<ProfitAndLoss> {
+  const [salesRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(total_amount), 0) AS total
+     FROM invoices
+     WHERE invoice_date BETWEEN ? AND ?
+       AND status IN ('active', 'partially_returned')`,
+    [fromDate, toDate]
+  );
+
+  const [returnsRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(total_amount), 0) AS total
+     FROM invoices
+     WHERE invoice_date BETWEEN ? AND ?
+       AND status = 'returned'`,
+    [fromDate, toDate]
+  );
+
+  const [cogsRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(ii.unit_cost * ii.quantity), 0) AS cogs
+     FROM invoice_items ii
+     JOIN invoices i ON ii.invoice_id = i.id
+     WHERE i.invoice_date BETWEEN ? AND ?
+       AND i.status IN ('active', 'partially_returned')`,
+    [fromDate, toDate]
+  );
+
+  const [expRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total
+     FROM expenses
+     WHERE expense_date BETWEEN ? AND ?`,
+    [fromDate, toDate]
+  );
+
+  const expByCatRaw = await dbClient.query(
+    `SELECT COALESCE(ec.name, 'غير مصنف') AS category_name,
+            COALESCE(SUM(e.amount), 0)    AS total
+     FROM expenses e
+     LEFT JOIN expense_categories ec ON e.category_id = ec.id
+     WHERE e.expense_date BETWEEN ? AND ?
+     GROUP BY ec.name
+     ORDER BY total DESC`,
+    [fromDate, toDate]
+  );
+
+  const [topupRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(profit), 0) AS total
+     FROM topups
+     WHERE topup_date BETWEEN ? AND ?`,
+    [fromDate, toDate]
+  );
+
+  const [mainRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(final_amount), 0) AS total
+     FROM maintenance_jobs
+     WHERE status = 'delivered'
+       AND DATE(delivered_at) BETWEEN ? AND ?`,
+    [fromDate, toDate]
+  );
+
+  const sales_gross        = Number(salesRow?.total  ?? 0);
+  const returns_total      = Number(returnsRow?.total ?? 0);
+  const sales_net          = sales_gross;
+  const cogs               = Number(cogsRow?.cogs    ?? 0);
+  const gross_profit       = sales_net - cogs;
+  const expenses_total     = Number(expRow?.total    ?? 0);
+  const topup_profit       = Number(topupRow?.total  ?? 0);
+  const maintenance_revenue = Number(mainRow?.total  ?? 0);
+  const other_income       = topup_profit + maintenance_revenue;
+  const net_profit         = gross_profit + other_income - expenses_total;
+
+  return {
+    sales_gross,
+    returns_total,
+    sales_net,
+    cogs,
+    gross_profit,
+    expenses_total,
+    expenses_by_category: expByCatRaw.map((r: any) => ({
+      category_name: r.category_name,
+      total: r.total,
+    })),
+    topup_profit,
+    maintenance_revenue,
+    other_income,
+    net_profit,
+    period: { fromDate, toDate },
+  };
+}

@@ -29,6 +29,40 @@ export async function getRecentLedgerEntries(limit = 100): Promise<LedgerEntry[]
   return results as LedgerEntry[];
 }
 
+export interface LedgerRow {
+  id: string;
+  entry_date: string;
+  created_at: string;
+  account_name: string | null;
+  account_type: string | null;
+  direction: 'credit' | 'debit';
+  amount: number;
+  ref_type: string | null;
+  ref_id: string | null;
+  description: string;
+}
+
+export async function getLedgerForPeriod(fromDate: string, toDate: string): Promise<LedgerRow[]> {
+  return dbClient.query(
+    `SELECT
+       le.id,
+       le.entry_date,
+       le.created_at,
+       a.name  AS account_name,
+       a.type  AS account_type,
+       le.type AS direction,
+       le.amount,
+       le.ref_type,
+       le.ref_id,
+       le.description
+     FROM ledger_entries le
+     LEFT JOIN accounts a ON le.account_id = a.id
+     WHERE le.entry_date BETWEEN ? AND ?
+     ORDER BY le.entry_date ASC, le.created_at ASC`,
+    [fromDate, toDate]
+  );
+}
+
 export async function getDailySummary(dateString?: string) {
   const targetDate = dateString || format(new Date(), 'yyyy-MM-dd');
 
