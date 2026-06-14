@@ -24,6 +24,8 @@ import indexesSql from './011_indexes.sql?raw';
 // @ts-ignore
 import multidevicePrepSql from './012_multidevice_prep.sql?raw';
 
+import { supabaseAdapter } from '../supabaseAdapter';
+
 const migrations = [
   { version: 1, sql: initSql },
   { version: 2, sql: removeDebtsSql },
@@ -40,8 +42,14 @@ const migrations = [
 ];
 
 export async function runMigrations() {
+  if (dbClient === supabaseAdapter) {
+    console.log('Using Supabase backend. Skipping SQLite migrations.');
+    return;
+  }
+
   const currentVersion = await dbClient.getVersion();
   console.log(`Current DB version: ${currentVersion}`);
+
 
   for (const migration of migrations) {
     if (migration.version > currentVersion) {

@@ -20,9 +20,26 @@ export function ForceChangeDefaultsScreen() {
   const handleNumber = (num: string) => {
     setError('');
     if (!isConfirming) {
-      if (newCode.length < 4) setNewCode(prev => prev + num);
+      if (newCode.length < 4) {
+        const next = newCode + num;
+        setNewCode(next);
+        if (next.length === 4) {
+          if ((step === 1 && next === '1234') || (step === 2 && next === '0000')) {
+            setError('لا يمكنك استخدام الرمز الافتراضي من فضلك ضع رمزاً جديداً');
+            return;
+          }
+          setIsConfirming(true);
+          setShowPin(false);
+        }
+      }
     } else {
-      if (confirmCode.length < 4) setConfirmCode(prev => prev + num);
+      if (confirmCode.length < 4) {
+        const next = confirmCode + num;
+        setConfirmCode(next);
+        if (next.length === 4) {
+          handleNext(newCode, next);
+        }
+      }
     }
   };
 
@@ -35,13 +52,16 @@ export function ForceChangeDefaultsScreen() {
     }
   };
 
-  const handleNext = async () => {
-    if (!isConfirming) {
-      if (newCode.length !== 4) {
+  const handleNext = async (customNew?: string, customConfirm?: string) => {
+    const codeToUse = customNew !== undefined ? customNew : newCode;
+    const confirmToUse = customConfirm !== undefined ? customConfirm : confirmCode;
+
+    if (!isConfirming && customNew === undefined) {
+      if (codeToUse.length !== 4) {
         setError('الرمز يجب أن يكون 4 أرقام');
         return;
       }
-      if ((step === 1 && newCode === '1234') || (step === 2 && newCode === '0000')) {
+      if ((step === 1 && codeToUse === '1234') || (step === 2 && codeToUse === '0000')) {
         setError('لا يمكنك استخدام الرمز الافتراضي من فضلك ضع رمزاً جديداً');
         return;
       }
@@ -50,7 +70,7 @@ export function ForceChangeDefaultsScreen() {
       return;
     }
 
-    if (newCode !== confirmCode) {
+    if (codeToUse !== confirmToUse) {
       setError('الرموز غير متطابقة، أعد المحاولة');
       setNewCode('');
       setConfirmCode('');
@@ -60,12 +80,12 @@ export function ForceChangeDefaultsScreen() {
 
     try {
       if (step === 1) {
-        const codeData = await hashCode(newCode);
+        const codeData = await hashCode(codeToUse);
         await set('daily_lock', codeData);
         setStep(2);
         resetState();
       } else {
-        const codeData = await hashCode(newCode);
+        const codeData = await hashCode(codeToUse);
         await set('admin_pin', codeData);
         await recheckDefaults();
       }
@@ -81,6 +101,7 @@ export function ForceChangeDefaultsScreen() {
     setError('');
     setShowPin(false);
   };
+
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center p-4">

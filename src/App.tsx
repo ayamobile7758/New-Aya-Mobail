@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { ErrorBoundary } from 'react-error-boundary';
 import { initDatabase } from './db/client';
 import { runMigrations } from './db/migrations';
+import { setupRealtimeSync } from './db/realtime';
 import { Shell } from './components/layout/Shell';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { ensurePersistence } from './lib/storage';
@@ -76,6 +77,16 @@ export default function App() {
     }
     setup();
   }, []);
+
+  useEffect(() => {
+    if (dbState !== 'ready') return;
+
+    const unsubscribe = setupRealtimeSync(queryClient);
+    return () => {
+      unsubscribe();
+    };
+  }, [dbState]);
+
 
   if (dbState === 'loading') {
     return (

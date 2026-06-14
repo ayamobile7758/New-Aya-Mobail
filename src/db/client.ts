@@ -1,13 +1,19 @@
-import * as Comlink from 'comlink';
-import type { DbWorkerApi } from './worker';
+// import * as Comlink from 'comlink';
+// import type { DbWorkerApi as WorkerApi } from './worker';
+// 
+// const worker = new Worker(new URL('./worker.ts', import.meta.url), {
+//   type: 'module',
+// });
+// 
+// // Create Comlink proxy
+// export const dbClient = Comlink.wrap<WorkerApi>(worker);
 
-const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-  type: 'module',
-});
+import { supabaseAdapter } from './supabaseAdapter';
 
-// Create Comlink proxy
-export const dbClient = Comlink.wrap<DbWorkerApi>(worker);
+// Switch to Supabase adapter
+export const dbClient = supabaseAdapter;
 
 export async function initDatabase() {
   await dbClient.initDb();
 }
+
