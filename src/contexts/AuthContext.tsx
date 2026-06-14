@@ -44,15 +44,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsReady(true);
   };
 
+  // Effect 1: run ONCE on mount — heavy operations
   useEffect(() => {
     recheckDefaults().then(() => checkLockStatus());
-
     const interval = setInterval(() => {
       checkLockStatus();
     }, 60000);
-
     return () => clearInterval(interval);
-  }, [cartItems?.length]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Effect 2: re-evaluate lock status when cart items change
+  // (cheap call — no recheckDefaults)
+  useEffect(() => {
+    checkLockStatus();
+  }, [cartItems?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markDayUnlocked = () => setIsDayUnlocked(true);
   
