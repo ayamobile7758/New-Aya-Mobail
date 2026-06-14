@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt } from '@/lib/auth';
-import { get } from 'idb-keyval';
+import { get, set } from 'idb-keyval';
 import { Shield, Clock, X } from 'lucide-react';
 import { toastSuccess, toastError } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
@@ -42,6 +42,7 @@ export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description 
 
     const stored = await get('admin_pin');
     if (stored && await verifyCode(pinToCheck, stored)) {
+      await set('pin_lockout_admin', null);
       grantAdminAccess();
       onSuccess();
       toastSuccess("تم تأكيد الصلاحية");
