@@ -1,8 +1,8 @@
 -- RUN THIS ONCE IN SUPABASE SQL EDITOR AFTER SCHEMA.SQL
 -- This file defines helper functions for SQLite-to-Postgres compatibility and SQL execution.
 
--- SQLite-compatibility DATE() helper functions
-CREATE OR REPLACE FUNCTION date(t timestamp with time zone)
+-- SQLite-compatibility DATE() helper functions (Explicitly in public schema)
+CREATE OR REPLACE FUNCTION public.date(t timestamp with time zone)
 RETURNS date
 LANGUAGE sql
 IMMUTABLE
@@ -10,7 +10,7 @@ AS $$
   SELECT t::date;
 $$;
 
-CREATE OR REPLACE FUNCTION date(t timestamp without time zone)
+CREATE OR REPLACE FUNCTION public.date(t timestamp without time zone)
 RETURNS date
 LANGUAGE sql
 IMMUTABLE
@@ -18,7 +18,7 @@ AS $$
   SELECT t::date;
 $$;
 
-CREATE OR REPLACE FUNCTION date(t text)
+CREATE OR REPLACE FUNCTION public.date(t text)
 RETURNS date
 LANGUAGE sql
 IMMUTABLE
@@ -31,7 +31,7 @@ AS $$
 $$;
 
 -- exec_sql: Executes a raw SQL query with '?' positional placeholders
-CREATE OR REPLACE FUNCTION exec_sql(query_text text, params jsonb DEFAULT '[]'::jsonb)
+CREATE OR REPLACE FUNCTION public.exec_sql(query_text text, params jsonb DEFAULT '[]'::jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -93,7 +93,7 @@ END;
 $$;
 
 -- exec_batch: Executes an array of statements in a single dynamic batch
-CREATE OR REPLACE FUNCTION exec_batch(statements jsonb)
+CREATE OR REPLACE FUNCTION public.exec_batch(statements jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -157,8 +157,11 @@ END;
 $$;
 
 -- Grant EXECUTE permission to anon, authenticated, and service_role
-GRANT EXECUTE ON FUNCTION date(timestamp with time zone) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION date(timestamp without time zone) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION date(text) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION exec_sql(text, jsonb) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION exec_batch(jsonb) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.date(timestamp with time zone) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.date(timestamp without time zone) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.date(text) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.exec_sql(text, jsonb) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.exec_batch(jsonb) TO anon, authenticated, service_role;
+
+-- Force PostgREST schema cache reload
+NOTIFY pgrst, 'reload schema';
