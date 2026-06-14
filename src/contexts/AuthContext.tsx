@@ -27,9 +27,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const cartItems = useCartStore(state => state.items); 
 
   const checkLockStatus = async () => {
-    // If cart has items, we postpone the lock until the sale is done.
-    if (cartItems && cartItems.length > 0) {
-      return; 
+    // Only postpone locking if we are already unlocked and cart has items
+    // (avoids interrupting an active session). On fresh loads we must still
+    // evaluate the unlock state even if a persisted cart has items.
+    if (isDayUnlocked && cartItems && cartItems.length > 0) {
+      return;
     }
     const required = await isDailyLockRequired();
     setIsDayUnlocked(!required);
