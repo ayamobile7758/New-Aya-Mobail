@@ -38,10 +38,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const recheckDefaults = async () => {
-    await ensureDefaults();
-    const [defDaily, defAdmin] = await Promise.all([isDefaultDailyLock(), isDefaultAdminPin()]);
-    setNeedsDefaultChange(defDaily || defAdmin);
-    setIsReady(true);
+    try {
+      await ensureDefaults();
+      const [defDaily, defAdmin] = await Promise.all([
+        isDefaultDailyLock(),
+        isDefaultAdminPin(),
+      ]);
+      setNeedsDefaultChange(defDaily || defAdmin);
+    } catch (e) {
+      console.error('[auth] recheckDefaults failed:', e);
+      // Still allow the app to render so the user sees something
+      // (the lock screen will then catch any auth issues).
+      setNeedsDefaultChange(false);
+    } finally {
+      setIsReady(true);
+    }
   };
 
   // Effect 1: run ONCE on mount — heavy operations
