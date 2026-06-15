@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from 'react-error-boundary';
-import { initDatabase } from './db/client';
+import { initDatabase, isSupabaseMode } from './db/client';
 import { runMigrations } from './db/migrations';
 import { setupRealtimeSync } from './db/realtime';
 import { Shell } from './components/layout/Shell';
@@ -126,7 +126,7 @@ export default function App() {
         <AuthGuard>
           <BrowserRouter>
             <AddToHomeScreen />
-            <BackupReminderBanner />
+            {!isSupabaseMode() && <BackupReminderBanner />}
             <Routes>
               <Route element={<Shell />}>
                 {/* Public/Employee Routes */}

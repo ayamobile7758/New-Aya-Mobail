@@ -1,10 +1,12 @@
 import { set } from 'idb-keyval';
-import { dbClient } from '@/db/client';
+import { dbClient, isSupabaseMode } from '@/db/client';
 import { logAudit } from '@/db/queries/audit';
 
 const LAST_BACKUP_KEY = 'pos_last_backup_time';
 
 export const getBackupInfo = () => {
+  if (isSupabaseMode()) return { lastBackupTime: null, isOverdue: false };
+
   const lastBackupStr = localStorage.getItem(LAST_BACKUP_KEY);
   if (!lastBackupStr) return { lastBackupTime: null, isOverdue: true };
 
@@ -19,6 +21,9 @@ export const getBackupInfo = () => {
 };
 
 export const exportDb = async (): Promise<void> => {
+  if (isSupabaseMode()) {
+    throw new Error('النسخ الاحتياطي المحلي غير مدعوم في الوضع السحابي. بياناتك محفوظة تلقائياً.');
+  }
   const dbData = await dbClient.exportDatabase();
   const blob = new Blob([dbData], { type: 'application/x-sqlite3' });
   const url = URL.createObjectURL(blob);
@@ -44,6 +49,9 @@ export const exportDb = async (): Promise<void> => {
 export const performBackup = exportDb;
 
 export const importDb = async (file: File): Promise<void> => {
+  if (isSupabaseMode()) {
+    throw new Error('استعادة النسخ الاحتياطي المحلي غير مدعومة في الوضع السحابي.');
+  }
   // أ) تحقّق من header SQLite
   const headerBuffer = await file.slice(0, 16).arrayBuffer();
   const header = new TextDecoder('utf-8').decode(headerBuffer);

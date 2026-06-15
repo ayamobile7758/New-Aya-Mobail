@@ -1,5 +1,6 @@
 import { AlertOctagon, Download, RefreshCw } from 'lucide-react';
 import { performBackup } from '@/lib/backup';
+import { isSupabaseMode } from '@/db/client';
 import { useState } from 'react';
 
 export function MigrationErrorScreen({ error }: { error: string }) {
@@ -34,14 +35,20 @@ export function MigrationErrorScreen({ error }: { error: string }) {
         </div>
         
         <div className="flex flex-col gap-3 w-full">
-          <button 
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center justify-center gap-2 w-full bg-[#CF694A] text-white font-bold py-3 rounded-xl transition-colors hover:bg-[#CF694A]/90 disabled:opacity-50"
-          >
-            <Download className="w-5 h-5" />
-            {exporting ? 'جاري التصدير...' : 'تصدير نسخة احتياطية'}
-          </button>
+          {isSupabaseMode() ? (
+            <p className="text-sm text-gray-600 text-center py-3">
+              بياناتك محفوظة بأمان على الخادم السحابي. أعد تحميل الصفحة للمحاولة مجدداً.
+            </p>
+          ) : (
+            <button 
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center justify-center gap-2 w-full bg-[#CF694A] text-white font-bold py-3 rounded-xl transition-colors hover:bg-[#CF694A]/90 disabled:opacity-50"
+            >
+              <Download className="w-5 h-5" />
+              {exporting ? 'جاري التصدير...' : 'تصدير نسخة احتياطية'}
+            </button>
+          )}
           
           <button 
             onClick={() => window.location.reload()}

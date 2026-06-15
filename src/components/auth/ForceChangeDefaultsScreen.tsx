@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { hashCode } from '@/lib/auth';
-import { set } from 'idb-keyval';
+import { useState, useEffect } from 'react';
+import { hashCode, writeSetting, isDailyLockEnabled, isDefaultDailyLock } from '@/lib/auth';
 import { Shield, Key, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,11 +8,30 @@ import { NumPad } from '@/components/ui/NumPad';
 export function ForceChangeDefaultsScreen() {
   const { recheckDefaults } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [newCode, setNewCode] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
   const [error, setError] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
   const [showPin, setShowPin] = useState(false);
+
+  // On mount, determine starting step: skip daily-lock step if disabled or already changed
+  useEffect(() => {
+    (async () => {
+      try {
+        const enabled = await isDailyLockEnabled();
+        const isDefault = await isDefaultDailyLock();
+        // Skip step 1 if daily lock is disabled or already non-default
+        if (!enabled || !isDefault) {
+          setStep(2);
+        }
+      } catch (e) {
+        // If check fails, default to showing both steps
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
 
   const activeCode = !isConfirming ? newCode : confirmCode;
 
@@ -81,12 +99,12 @@ export function ForceChangeDefaultsScreen() {
     try {
       if (step === 1) {
         const codeData = await hashCode(codeToUse);
-        await set('daily_lock', codeData);
+        await writeSetting('daily_lock', { enabled: true, ...codeData });
         setStep(2);
         resetState();
       } else {
         const codeData = await hashCode(codeToUse);
-        await set('admin_pin', codeData);
+        await writeSetting('admin_pin', codeData);
         await recheckDefaults();
       }
     } catch (e: any) {
@@ -102,6 +120,14 @@ export function ForceChangeDefaultsScreen() {
     setShowPin(false);
   };
 
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-accent" />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center p-4">
