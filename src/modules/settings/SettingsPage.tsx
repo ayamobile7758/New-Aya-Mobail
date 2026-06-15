@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportDb, importDb } from '@/lib/backup';
-import { changeDailyLock, changeAdminPin } from '@/lib/auth';
+import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
 import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audit';
 import { getDeviceId, getDeviceName, setDeviceName } from '@/lib/device';
@@ -108,6 +108,32 @@ export default function SettingsPage() {
 
   const [isChangingDaily, setIsChangingDaily] = useState(false);
   const [isChangingAdmin, setIsChangingAdmin] = useState(false);
+
+  // Security - Daily Lock Toggle
+  const [dailyLockEnabled, setDailyLockEnabledState] = useState(true);
+  const [toggleDailyAdminPin, setToggleDailyAdminPin] = useState('');
+
+  useEffect(() => {
+    if (activeTab === 'security') {
+      isDailyLockEnabled().then(setDailyLockEnabledState);
+    }
+  }, [activeTab]);
+
+  const handleToggleDailyLock = async () => {
+    if (toggleDailyAdminPin.length < 4) {
+      toast.error('رمز المشرف مطلوب ومكون من 4 أرقام');
+      return;
+    }
+    try {
+      const nextVal = !dailyLockEnabled;
+      await setDailyLockEnabled(nextVal, toggleDailyAdminPin);
+      toast.success(nextVal ? 'تم تفعيل قفل اليومية بنجاح' : 'تم تعطيل قفل اليومية بنجاح');
+      setDailyLockEnabledState(nextVal);
+      setToggleDailyAdminPin('');
+    } catch (e: any) {
+      toast.error(e.message || 'رمز المشرف غير صحيح');
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { requireAdminAction } = useAuth();
@@ -746,6 +772,32 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     )}
+
+                    <div className="border-t border-border mt-4 pt-4">
+                      <h3 className="font-bold mb-2">تفعيل/تعطيل الرمز اليومي</h3>
+                      <p className="text-xs text-text-secondary mb-3">
+                        حالة الرمز حالياً: <strong>{dailyLockEnabled ? 'مفعّل' : 'معطّل'}</strong>. عند تعطيله، سيفتح النظام دون طلب الرمز اليومي.
+                      </p>
+                      <div className="flex flex-col sm:flex-row items-end gap-3 max-w-md">
+                        <div className="flex-1">
+                          <label className="block text-xs mb-1 text-text-secondary">رمز المشرف الحالي (للتحقق)</label>
+                          <input
+                            type="password" inputMode="numeric" pattern="[0-9]*"
+                            value={toggleDailyAdminPin} onChange={e => setToggleDailyAdminPin(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent bg-surface text-center tracking-widest text-lg"
+                          />
+                        </div>
+                        <button
+                          onClick={handleToggleDailyLock}
+                          className={cn(
+                            "h-11 px-6 font-bold rounded-lg transition-colors whitespace-nowrap",
+                            dailyLockEnabled ? "bg-danger text-white hover:opacity-90" : "bg-success text-white hover:opacity-90"
+                          )}
+                        >
+                          {dailyLockEnabled ? "تعطيل الرمز اليومي" : "تفعيل الرمز اليومي"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

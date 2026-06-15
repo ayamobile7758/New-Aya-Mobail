@@ -47,7 +47,7 @@ export async function verifyCode(code: string, stored: { hash: string, salt: str
 }
 
 // Internal helpers for reading and writing app_settings
-async function readSetting(key: string): Promise<any | null> {
+export async function readSetting(key: string): Promise<any | null> {
   if (isSupabaseMode()) {
     try {
       const rows = await dbClient.query('SELECT value FROM app_settings WHERE key = ?', [key]);
@@ -68,7 +68,7 @@ async function readSetting(key: string): Promise<any | null> {
   }
 }
 
-async function writeSetting(key: string, value: any): Promise<void> {
+export async function writeSetting(key: string, value: any): Promise<void> {
   if (isSupabaseMode()) {
     const valueStr = JSON.stringify(value);
     const nowStr = new Date().toISOString();

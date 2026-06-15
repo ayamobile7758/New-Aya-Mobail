@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlocked } from '@/lib/auth';
-import { get } from 'idb-keyval';
+import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlocked, readSetting, isDailyLockEnabled } from '@/lib/auth';
 import { Lock, Clock } from 'lucide-react';
 import { toastError, toastSuccess } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
 
 export function DailyLockScreen() {
-  const { markDayUnlocked } = useAuth();
+  const { grantPosAccess, grantAdminAccess } = useAuth();
   const [pin, setPin] = useState('');
   const [lockoutSecs, setLockoutSecs] = useState(0);
 
@@ -25,18 +24,33 @@ export function DailyLockScreen() {
     if (lockoutSecs > 0) return;
     
     if (newPin.length === 4) {
-      const stored = await get('daily_lock');
-      if (stored && await verifyCode(newPin, stored)) {
+      // 1. Check admin pin first
+      const storedAdmin = await readSetting('admin_pin');
+      if (storedAdmin && await verifyCode(newPin, storedAdmin)) {
         await markUnlocked();
-        markDayUnlocked();
-        toastSuccess("تم تأكيد الرمز");
-      } else {
-        await recordFailedAttempt('daily');
-        setPin('');
-        toastError("الرمز غير صحيح");
-        const remaining = await getLockoutSecondsRemaining('daily');
-        setLockoutSecs(remaining);
+        grantAdminAccess();
+        toastSuccess("تم الدخول بصلاحيات المدير");
+        return;
       }
+
+      // 2. Check daily lock if enabled
+      const dailyEnabled = await isDailyLockEnabled();
+      if (dailyEnabled) {
+        const storedDaily = await readSetting('daily_lock');
+        if (storedDaily && await verifyCode(newPin, storedDaily)) {
+          await markUnlocked();
+          grantPosAccess();
+          toastSuccess("تم الدخول بصلاحيات نقطة البيع");
+          return;
+        }
+      }
+
+      // 3. Fallback: failed attempt
+      await recordFailedAttempt('daily');
+      setPin('');
+      toastError("الرمز غير صحيح");
+      const remaining = await getLockoutSecondsRemaining('daily');
+      setLockoutSecs(remaining);
     }
   };
 

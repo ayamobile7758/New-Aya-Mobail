@@ -29,20 +29,7 @@ export function Shell() {
     setShowWarning(false);
   };
 
-  // ── Admin session badge ──────────────────────────────────────────────────────
-  const { isAdminPinValidUntil } = useAuth();
-  const [adminMinsLeft, setAdminMinsLeft] = useState(0);
-
-  useEffect(() => {
-    const update = () => {
-      if (!isAdminPinValidUntil) { setAdminMinsLeft(0); return; }
-      const diff = isAdminPinValidUntil - Date.now();
-      setAdminMinsLeft(diff > 0 ? Math.ceil(diff / 60000) : 0);
-    };
-    update();
-    const t = setInterval(update, 30000);
-    return () => clearInterval(t);
-  }, [isAdminPinValidUntil]);
+  const { accessLevel, exitAdmin } = useAuth();
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background w-full max-w-[100vw] text-text-primary">
@@ -75,15 +62,16 @@ export function Shell() {
       <PWABadge />
 
       {/* ── Admin session indicator badge — visible on every route ── */}
-      {adminMinsLeft > 0 && (
-        <div
+      {accessLevel === 'admin' && (
+        <button
           dir="rtl"
-          className="fixed top-2 end-2 z-30 bg-[#CF694A] text-white rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 pointer-events-none"
+          onClick={exitAdmin}
+          className="fixed top-2 end-2 z-30 bg-[#CF694A] hover:bg-[#CF694A]/90 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer border-0 outline-none"
           style={{ fontFamily: 'Tajawal, sans-serif' }}
         >
-          <Shield className="w-3 h-3" />
-          وضع المشرف نشط · {adminMinsLeft} د
-        </div>
+          <Shield className="w-3 h-3 shrink-0" />
+          <span>وضع المدير · خروج</span>
+        </button>
       )}
     </div>
   );

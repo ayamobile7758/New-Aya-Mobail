@@ -1,15 +1,18 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { isDailyLockRequired, ensureDefaults, isDefaultDailyLock, isDefaultAdminPin } from '@/lib/auth';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { isDailyLockRequired, ensureDefaults, isDefaultDailyLock, isDefaultAdminPin, isDailyLockEnabled } from '@/lib/auth';
 import { useCartStore } from '@/stores/cart.store';
 
+export type AccessLevel = 'locked' | 'pos' | 'admin';
+
 interface AuthContextType {
+  accessLevel: AccessLevel;
   isDayUnlocked: boolean;
-  isAdminPinValidUntil: number | null;
   needsDefaultChange: boolean;
   recheckDefaults: () => Promise<void>;
   checkLockStatus: () => Promise<void>;
-  markDayUnlocked: () => void;
   grantAdminAccess: () => void;
+  grantPosAccess: () => void;
+  exitAdmin: () => Promise<void>;
   requireAdminAction: (callback: () => void) => void;
   pendingAdminAction: (() => void) | null;
   clearPendingAdminAction: () => void;
@@ -18,37 +21,40 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isDayUnlocked, setIsDayUnlocked] = useState(false);
-  const [isAdminPinValidUntil, setIsAdminPinValidUntil] = useState<number | null>(null);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>('locked');
   const [pendingAdminAction, setPendingAdminAction] = useState<(() => void) | null>(null);
   const [needsDefaultChange, setNeedsDefaultChange] = useState<boolean>(false);
   const [isReady, setIsReady] = useState(false);
   
   const cartItems = useCartStore(state => state.items); 
 
+  const cartLengthRef = useRef(0);
+  useEffect(() => {
+    cartLengthRef.current = cartItems?.length || 0;
+  }, [cartItems?.length]);
+
   const checkLockStatus = async () => {
-    // Only postpone locking if we are already unlocked and cart has items
-    // (avoids interrupting an active session). On fresh loads we must still
-    // evaluate the unlock state even if a persisted cart has items.
-    if (isDayUnlocked && cartItems && cartItems.length > 0) {
-      return;
-    }
     const required = await isDailyLockRequired();
-    setIsDayUnlocked(!required);
+    const hasCartItems = cartLengthRef.current > 0;
+    
+    setAccessLevel(current => {
+      if (current === 'admin') return 'admin';
+      if (current === 'pos' && hasCartItems) return 'pos';
+      return required ? 'locked' : 'pos';
+    });
   };
 
   const recheckDefaults = async () => {
     try {
       await ensureDefaults();
+      const enabled = await isDailyLockEnabled();
       const [defDaily, defAdmin] = await Promise.all([
         isDefaultDailyLock(),
         isDefaultAdminPin(),
       ]);
-      setNeedsDefaultChange(defDaily || defAdmin);
+      setNeedsDefaultChange((enabled && defDaily) || defAdmin);
     } catch (e) {
       console.error('[auth] recheckDefaults failed:', e);
-      // Still allow the app to render so the user sees something
-      // (the lock screen will then catch any auth issues).
       setNeedsDefaultChange(false);
     } finally {
       setIsReady(true);
@@ -57,7 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Effect 1: run ONCE on mount — heavy operations
   useEffect(() => {
-    recheckDefaults().then(() => checkLockStatus());
+    const init = async () => {
+      await recheckDefaults();
+      const required = await isDailyLockRequired();
+      setAccessLevel(required ? 'locked' : 'pos');
+    };
+    init();
+    
     const interval = setInterval(() => {
       checkLockStatus();
     }, 60000);
@@ -70,14 +82,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkLockStatus();
   }, [cartItems?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const markDayUnlocked = () => setIsDayUnlocked(true);
-  
   const grantAdminAccess = () => {
-    setIsAdminPinValidUntil(Date.now() + 15 * 60 * 1000);
+    setAccessLevel('admin');
+  };
+
+  const grantPosAccess = () => {
+    setAccessLevel('pos');
+  };
+
+  const exitAdmin = async () => {
+    const required = await isDailyLockRequired();
+    setAccessLevel(required ? 'locked' : 'pos');
   };
 
   const requireAdminAction = (callback: () => void) => {
-    if (isAdminPinValidUntil && Date.now() < isAdminPinValidUntil) {
+    if (accessLevel === 'admin') {
       callback();
     } else {
       setPendingAdminAction(() => callback);
@@ -94,13 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      isDayUnlocked,
-      isAdminPinValidUntil,
+      accessLevel,
+      isDayUnlocked: accessLevel === 'pos' || accessLevel === 'admin',
       needsDefaultChange,
       recheckDefaults,
       checkLockStatus,
-      markDayUnlocked,
       grantAdminAccess,
+      grantPosAccess,
+      exitAdmin,
       requireAdminAction,
       pendingAdminAction,
       clearPendingAdminAction

@@ -6,10 +6,12 @@ import { SavedCartsTabs } from "./components/SavedCartsTabs";
 import { useCartStore } from "@/stores/cart.store";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { ShoppingCart, X, Home } from "lucide-react";
+import { ShoppingCart, X, Home, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function POSPage() {
   const navigate = useNavigate();
+  const { accessLevel, requireAdminAction } = useAuth();
   const [showMobileCart, setShowMobileCart] = useState(false);
   const { items, getTotal, pulseTrigger } = useCartStore();
   const [pulse, setPulse] = useState(false);
@@ -35,7 +37,7 @@ export default function POSPage() {
       {/* ── Main Products Area — fills remaining space, LEFT side ── */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
 
-        {/* ── Top bar: Home button + SavedCartsTabs ── */}
+        {/* ── Top bar: Home button + Admin Elevation + SavedCartsTabs ── */}
         <div className="flex items-center shrink-0 border-b border-border bg-background">
           <button
             onClick={() => navigate('/dashboard')}
@@ -46,6 +48,17 @@ export default function POSPage() {
           >
             <Home className="w-5 h-5" />
           </button>
+          {accessLevel === 'pos' && (
+            <button
+              onClick={() => requireAdminAction(() => navigate('/dashboard'))}
+              className="flex items-center gap-1.5 px-3 h-11 shrink-0 border border-border rounded-lg bg-surface hover:text-accent hover:border-accent text-text-secondary hover:text-text-primary transition-colors shadow-sm text-sm font-bold"
+              style={{ touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif' }}
+              title="دخول المدير"
+            >
+              <Shield className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">دخول المدير</span>
+            </button>
+          )}
           <div className="flex-1 min-w-0 border-s border-border">
             <SavedCartsTabs />
           </div>

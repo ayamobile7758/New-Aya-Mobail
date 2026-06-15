@@ -11,9 +11,9 @@ interface AdminGateProps {
 }
 
 export function AdminGate({ children, fallback, title, description, onCancel }: AdminGateProps) {
-  const { isAdminPinValidUntil } = useAuth();
+  const { accessLevel } = useAuth();
   
-  const isAuthorized = isAdminPinValidUntil && Date.now() < isAdminPinValidUntil;
+  const isAuthorized = accessLevel === 'admin';
 
   // React to change in authorization state.
   if (isAuthorized) {

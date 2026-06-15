@@ -5,13 +5,13 @@ import { AdminPinDialog } from './AdminPinDialog';
 import { ForceChangeDefaultsScreen } from './ForceChangeDefaultsScreen';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isDayUnlocked, pendingAdminAction, clearPendingAdminAction, needsDefaultChange } = useAuth();
+  const { accessLevel, pendingAdminAction, clearPendingAdminAction, needsDefaultChange } = useAuth();
   
   if (needsDefaultChange) {
     return <ForceChangeDefaultsScreen />;
   }
 
-  if (!isDayUnlocked) {
+  if (accessLevel === 'locked') {
     return (
       <div className="h-full relative filter-none">
         <DailyLockScreen />
