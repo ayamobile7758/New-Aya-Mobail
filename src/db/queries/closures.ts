@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 import { nanoid } from 'nanoid';
 import { logAudit } from './audit';
 import { getDeviceId } from '@/lib/device';
+import { formatMoney } from '@/lib/money';
+
 
 export interface DayClosureSnapshot {
   closure_date: string;
@@ -14,6 +16,8 @@ export interface DayClosureSnapshot {
   gifts_value: number;
   returns_total: number;
   expenses_total: number;
+  topup_profit: number;          // NEW
+  maintenance_revenue: number;    // NEW
   net_profit: number;
   notes?: string | null;
 }
@@ -54,8 +58,11 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     [targetDate]
   );
 
+  // ME-A: returns_adjustment = net revenue reduction from returned/partially_returned invoices.
+  // For fully returned: paid_amount=0, so this reads total_amount (matches full refund).
+  // For partially returned: paid_amount = remaining after refund, so this reads refund amount.
   const [returnsRow] = await dbClient.query(
-    `SELECT COALESCE(SUM(total_amount - paid_amount), 0) AS returns
+    `SELECT COALESCE(SUM(total_amount - paid_amount), 0) AS returns_adjustment
      FROM invoices
      WHERE invoice_date = ? AND status IN ('returned', 'partially_returned')`,
     [targetDate]
@@ -66,13 +73,34 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     [targetDate]
   );
 
-  const sales_total    = Number(salesRow?.total    ?? 0);
-  const discounts_total = Number(salesRow?.discounts ?? 0);
-  const cogs_total     = Number(cogsRow?.cogs       ?? 0);
-  const gifts_value    = Number(giftsRow?.gifts      ?? 0);
-  const returns_total  = Number(returnsRow?.returns  ?? 0);
-  const expenses_total = Number(expRow?.expenses     ?? 0);
-  const net_profit     = sales_total - cogs_total - expenses_total;
+  // CR-B: include topup profit and maintenance revenue
+  const [topupRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(profit), 0) AS topup_profit FROM topups WHERE topup_date = ?`,
+    [targetDate]
+  );
+
+  const [mainRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(final_amount), 0) AS maintenance_revenue
+     FROM maintenance_jobs
+     WHERE status = 'delivered' AND substr(delivered_at, 1, 10) = ?`,
+    [targetDate]
+  );
+
+  const sales_total          = Number(salesRow?.total              ?? 0);
+  const discounts_total      = Number(salesRow?.discounts          ?? 0);
+  const cogs_total           = Number(cogsRow?.cogs                ?? 0);
+  const gifts_value          = Number(giftsRow?.gifts              ?? 0);
+  const returns_total        = Number(returnsRow?.returns_adjustment ?? 0);
+  const expenses_total       = Number(expRow?.expenses             ?? 0);
+  const topup_profit         = Number(topupRow?.topup_profit       ?? 0);
+  const maintenance_revenue  = Number(mainRow?.maintenance_revenue ?? 0);
+
+  // CR-B: corrected formula
+  // sales_total already excludes returned invoices (status='active' filter)
+  // cogs_total already excludes gift items (is_gift=0 filter)
+  // Therefore: net = (active sales - active COGS) + other income - expenses
+  // Do NOT subtract returns_total or gifts_value again — already excluded upstream.
+  const net_profit = sales_total - cogs_total + topup_profit + maintenance_revenue - expenses_total;
 
   return {
     closure_date: targetDate,
@@ -82,6 +110,8 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     gifts_value,
     returns_total,
     expenses_total,
+    topup_profit,
+    maintenance_revenue,
     net_profit,
   };
 }
@@ -124,7 +154,7 @@ export async function closeDay(
 
       if (diff !== 0) {
         const entryType = diff > 0 ? 'credit' : 'debit';
-        const description = `تسوية إقفال يومي: ${acct.name} — الفرق ${diff > 0 ? '+' : ''}${diff / 100} د.أ`;
+        const description = `تسوية إقفال يومي: ${acct.name} — الفرق ${diff > 0 ? '+' : ''}${formatMoney(diff)}`;
         tx.push({
           sql: `INSERT INTO ledger_entries
                   (id, entry_date, account_id, account_name, type, amount,
@@ -137,7 +167,7 @@ export async function closeDay(
           ],
         });
         reconciliationDetails.push(
-          `${acct.name}: ${diff > 0 ? '+' : ''}${(diff / 100).toFixed(3)} د.أ`
+          `${acct.name}: ${diff > 0 ? '+' : ''}${formatMoney(diff)}`
         );
       }
 
@@ -154,12 +184,15 @@ export async function closeDay(
   tx.push({
     sql: `INSERT INTO day_closures
             (closure_date, closed_at, closed_by, sales_total, cogs_total,
-             discounts_total, gifts_value, returns_total, expenses_total, net_profit, notes, device_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             discounts_total, gifts_value, returns_total, expenses_total,
+             topup_profit, maintenance_revenue,
+             net_profit, notes, device_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
       targetDate, closedAt, null,
       snapshot.sales_total, snapshot.cogs_total, snapshot.discounts_total,
       snapshot.gifts_value, snapshot.returns_total, snapshot.expenses_total,
+      snapshot.topup_profit, snapshot.maintenance_revenue,
       snapshot.net_profit, notes || null, deviceId,
     ],
   });
@@ -168,10 +201,12 @@ export async function closeDay(
 
   const auditDetail = [
     `تاريخ: ${targetDate}`,
-    `مبيعات: ${(snapshot.sales_total / 100).toFixed(3)} د.أ`,
-    `تكلفة: ${(snapshot.cogs_total / 100).toFixed(3)} د.أ`,
-    `مصاريف: ${(snapshot.expenses_total / 100).toFixed(3)} د.أ`,
-    `صافي ربح: ${(snapshot.net_profit / 100).toFixed(3)} د.أ`,
+    `مبيعات: ${formatMoney(snapshot.sales_total)}`,
+    `تكلفة: ${formatMoney(snapshot.cogs_total)}`,
+    `مصاريف: ${formatMoney(snapshot.expenses_total)}`,
+    `شحن: ${formatMoney(snapshot.topup_profit)}`,
+    `صيانة: ${formatMoney(snapshot.maintenance_revenue)}`,
+    `صافي ربح: ${formatMoney(snapshot.net_profit)}`,
     ...(reconciliationDetails.length
       ? [`تسويات نقدية: ${reconciliationDetails.join(', ')}`]
       : []),
@@ -182,7 +217,44 @@ export async function closeDay(
 
 // ── D2.4 ────────────────────────────────────────────────────────────────────
 export async function reopenDay(date: string): Promise<void> {
-  await dbClient.run(`DELETE FROM day_closures WHERE closure_date = ?`, [date]);
+  // CR-A: must reverse reconciliation entries and restore pre-closure balances
+  const reconEntries = await dbClient.query(
+    `SELECT id, account_id, type, amount FROM ledger_entries
+     WHERE entry_date = ? AND ref_type = 'eod_reconciliation'`,
+    [date]
+  );
+
+  const tx: { sql: string; params: any[] }[] = [];
+  const now = new Date().toISOString();
+
+  // For each reconciliation entry, reverse its balance effect
+  for (const entry of reconEntries) {
+    // Original credit → add to balance → reverse = subtract
+    // Original debit → subtract from balance → reverse = add
+    const op = entry.type === 'credit' ? '-' : '+';
+    tx.push({
+      sql: `UPDATE accounts SET balance = balance ${op} ?, updated_at = ? WHERE id = ?`,
+      params: [entry.amount, now, entry.account_id],
+    });
+  }
+
+  // Delete the reconciliation ledger rows
+  if (reconEntries.length > 0) {
+    const ids = reconEntries.map((e: any) => e.id);
+    const placeholders = ids.map(() => '?').join(',');
+    tx.push({
+      sql: `DELETE FROM ledger_entries WHERE id IN (${placeholders})`,
+      params: ids,
+    });
+  }
+
+  // Delete the day_closures row
+  tx.push({
+    sql: `DELETE FROM day_closures WHERE closure_date = ?`,
+    params: [date],
+  });
+
+  await dbClient.batchRun(tx);
   await logAudit('فتح_يوم_مقفل', date, 'day_closure', date);
 }
 

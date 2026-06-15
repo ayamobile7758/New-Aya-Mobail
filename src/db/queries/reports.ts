@@ -261,6 +261,15 @@ export async function getProfitAndLoss(fromDate: string, toDate: string): Promis
     [fromDate, toDate]
   );
 
+  // CR-C: partial refunds (paid_amount reduced via returnInvoice for partials)
+  const [partialReturnsRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(total_amount - paid_amount), 0) AS total
+     FROM invoices
+     WHERE invoice_date BETWEEN ? AND ?
+       AND status = 'partially_returned'`,
+    [fromDate, toDate]
+  );
+
   const expByCatRaw = await dbClient.query(
     `SELECT COALESCE(ec.name, 'غير مصنف') AS category_name,
             COALESCE(SUM(e.amount), 0)    AS total
@@ -283,13 +292,15 @@ export async function getProfitAndLoss(fromDate: string, toDate: string): Promis
     `SELECT COALESCE(SUM(final_amount), 0) AS total
      FROM maintenance_jobs
      WHERE status = 'delivered'
-       AND DATE(delivered_at) BETWEEN ? AND ?`,
+       AND substr(delivered_at, 1, 10) BETWEEN ? AND ?`,
     [fromDate, toDate]
   );
 
   const sales_gross        = Number(salesRow?.total  ?? 0);
   const returns_total      = Number(returnsRow?.total ?? 0);
-  const sales_net          = sales_gross;
+  const partial_returns_total = Number(partialReturnsRow?.total ?? 0);
+  // CR-C: sales_net deducts both full returns and partial refunds
+  const sales_net          = sales_gross - returns_total - partial_returns_total;
   const cogs               = Number(cogsRow?.cogs    ?? 0);
   const gross_profit       = sales_net - cogs;
   const expenses_total     = Number(expRow?.total    ?? 0);

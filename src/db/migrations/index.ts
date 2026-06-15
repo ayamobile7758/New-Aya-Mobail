@@ -23,6 +23,8 @@ import dayClosuresSql from './010_day_closures.sql?raw';
 import indexesSql from './011_indexes.sql?raw';
 // @ts-ignore
 import multidevicePrepSql from './012_multidevice_prep.sql?raw';
+// @ts-ignore
+import addTopupMaintenanceToClosuresSql from './013_add_topup_maintenance_to_closures.sql?raw';
 
 import { supabaseAdapter } from '../supabaseAdapter';
 
@@ -39,6 +41,7 @@ const migrations = [
   { version: 10, sql: dayClosuresSql },
   { version: 11, sql: indexesSql },
   { version: 12, sql: multidevicePrepSql },
+  { version: 13, sql: addTopupMaintenanceToClosuresSql },
 ];
 
 export async function runMigrations() {

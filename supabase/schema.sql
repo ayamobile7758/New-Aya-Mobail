@@ -498,3 +498,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE sequences;
 -- Verify in Supabase Dashboard → Table Editor: 19 tables should appear.
 -- Verify Realtime: Database → Replication → supabase_realtime → 14 tables.
 -- =====================================================================
+
+-- Migration 013 Alter Table Additions
+ALTER TABLE day_closures ADD COLUMN topup_profit INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE day_closures ADD COLUMN maintenance_revenue INTEGER NOT NULL DEFAULT 0;
+
