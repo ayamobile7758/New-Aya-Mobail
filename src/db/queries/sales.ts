@@ -50,6 +50,13 @@ export async function completeSale(data: {
 
   const paidAmount = payments.reduce((sum, p) => sum + p.amount, 0);
 
+  // HI-A: server-side guard against credit sales. Per owner policy: no debt allowed.
+  if (paidAmount < totalAmount) {
+    throw new Error(
+      `المبلغ المدفوع (${formatMoney(paidAmount)}) أقل من إجمالي الفاتورة (${formatMoney(totalAmount)}). البيع الآجل غير مسموح.`
+    );
+  }
+
   // Pre-fetch all accounts for names and fee_percent
   const accountIds = payments.map(p => p.accountId);
   const accountMap = new Map<string, { name: string; feePercent: number }>();
@@ -115,6 +122,18 @@ export async function completeSale(data: {
       assignedGlobal += share;
     }
   });
+
+  // HI-D: snapshot expected post-sale stock for tracked items, used for post-batch verification.
+  const expectedStockAfter = new Map<string, number>();
+  for (const item of cartItems) {
+    if (item.product.track_stock) {
+      const p = productMap.get(item.product.id);
+      if (p) {
+        const prev = expectedStockAfter.get(item.product.id) ?? p.stock_qty;
+        expectedStockAfter.set(item.product.id, prev - item.quantity);
+      }
+    }
+  }
 
   // 4. Insert items and update stock
   for (let i = 0; i < cartItems.length; i++) {
@@ -210,12 +229,37 @@ export async function completeSale(data: {
 
   await dbClient.batchRun(stmts);
 
+  // HI-D: post-batch oversell detection. Single-shop trust model: invoice is
+  // already recorded (cannot be rolled back without RPC support in Phase 7).
+  // Surface a flagged audit entry so the owner can reconcile inventory manually.
+  if (expectedStockAfter.size > 0) {
+    const ids = Array.from(expectedStockAfter.keys());
+    const placeholders = ids.map(() => '?').join(',');
+    const actualRows = await dbClient.query(
+      `SELECT id, stock_qty FROM products WHERE id IN (${placeholders})`,
+      ids
+    );
+    for (const row of actualRows) {
+      const expected = expectedStockAfter.get(row.id);
+      if (expected !== undefined && row.stock_qty !== expected) {
+        // Stock did not decrement as expected — concurrent sale on another tablet.
+        // The current invoice is intact; flag the inventory drift for manual review.
+        await logAudit(
+          'تنبيه_تجاوز_مخزون',
+          `فاتورة ${invoiceNumber} — منتج ${row.id} — متوقع ${expected}, فعلي ${row.stock_qty} — راجع المخزون يدوياً`,
+          'invoice',
+          invoiceId
+        );
+      }
+    }
+  }
+
   // P4: تسجيل سجل التدقيق — يشمل ملخص الهدايا والخصومات والأسعار المعدَّلة
   const giftCount = cartItems.filter(i => i.isGift).length;
   const discountedCount = cartItems.filter(i => !i.isGift && i.discountValue > 0).length;
   const overrideCount = cartItems.filter(i => i.overridePrice !== undefined).length;
   const enrichedDetail =
-    `فاتورة ${invoiceNumber} — الإجمالي ${totalAmount / 100} د.أ` +
+    `فاتورة ${invoiceNumber} — الإجمالي ${formatMoney(totalAmount)}` +
     (giftCount       ? ` — هدايا: ${giftCount}` : '') +
     (discountedCount ? ` — أسطر بخصم: ${discountedCount}` : '') +
     (overrideCount   ? ` — أسعار معدَّلة: ${overrideCount}` : '');
@@ -339,7 +383,13 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
     params: [newStatus, totalRefund, ` | ${returnNote}`, now, invoiceId],
   });
 
-  // استرجاع المخزون فقط عند الاسترجاع الكامل — في الاسترجاع الجزئي البضاعة لا تزال عند العميل
+  // ── DESIGN INTENT (2026-06-15) ──────────────────────────────────────────
+  // Partial returns are amount-based only. The customer keeps the goods.
+  // Stock restoration and COGS reversal happen ONLY on full returns
+  // (status='returned'). This is intentional for mobile retail where
+  // partial-unit returns do not occur; partial refunds act as
+  // "retroactive discount" semantics. See Owner Decision §5.
+  // ────────────────────────────────────────────────────────────────────────
   if (newStatus === 'returned') {
     for (const item of items) {
       if (!item.product_id) continue;
