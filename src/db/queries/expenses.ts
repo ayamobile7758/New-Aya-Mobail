@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { logAudit } from './audit';
 import { isDayClosed } from './closures';
 import { getDeviceId } from '@/lib/device';
+import { formatMoney } from '@/lib/money';
 
 export interface ExpenseCategory {
   id: string;
@@ -26,6 +27,7 @@ export interface Expense {
   expense_date: string;
   notes: string | null;
   created_at: string;
+  deleted_at?: string | null;
 }
 
 export async function getExpenseCategories(includeInactive = false): Promise<ExpenseCategory[]> {
@@ -157,5 +159,143 @@ export async function getFilteredExpenses(startDate?: string, endDate?: string, 
   }
   
   const results = await dbClient.query(query, params);
+  return results as Expense[];
+}
+
+// ── Soft-delete an expense with full financial reversal ─────────────────────
+// ME-D: gated by admin PIN at the UI layer. Credits the account back, writes
+// a reversing ledger entry, and marks the row as deleted_at.
+export async function deleteExpense(id: string): Promise<void> {
+  const rows = await dbClient.query(
+    `SELECT * FROM expenses WHERE id = ? AND deleted_at IS NULL`,
+    [id]
+  );
+  if (!rows.length) throw new Error('المصروف غير موجود أو محذوف مسبقاً');
+  const exp = rows[0];
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  if (await isDayClosed(today)) {
+    throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
+  }
+
+  const now = new Date().toISOString();
+  const deviceId = getDeviceId();
+  const tx: { sql: string; params: any[] }[] = [];
+
+  // 1. Mark expense as deleted
+  tx.push({
+    sql: `UPDATE expenses SET deleted_at = ?, updated_at = ? WHERE id = ?`,
+    params: [now, now, id],
+  });
+
+  if (exp.account_id) {
+    // 2. Credit the account back by the expense amount
+    tx.push({
+      sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
+      params: [exp.amount, now, exp.account_id],
+    });
+
+    // 3. Reverse ledger entry
+    tx.push({
+      sql: `INSERT INTO ledger_entries
+              (id, entry_date, account_id, account_name, type, amount,
+               ref_type, ref_id, description, created_at, updated_at, device_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [
+        nanoid(), today, exp.account_id, exp.account_name,
+        'credit', exp.amount, 'expense', id,
+        `حذف مصروف: ${exp.expense_number} — ${exp.description}`,
+        now, now, deviceId,
+      ],
+    });
+  }
+
+  await dbClient.batchRun(tx);
+  await logAudit(
+    'حذف_مصروف',
+    `${exp.expense_number} — ${formatMoney(exp.amount)} — ${exp.description}`,
+    'expense', id
+  );
+}
+
+// ── Restore a soft-deleted expense — re-applies financial impact ────────────
+// ME-D: includes a balance check before debiting the account so we never
+// create a negative balance via restore.
+export async function restoreExpense(id: string): Promise<void> {
+  const rows = await dbClient.query(
+    `SELECT * FROM expenses WHERE id = ? AND deleted_at IS NOT NULL`,
+    [id]
+  );
+  if (!rows.length) throw new Error('المصروف غير موجود أو غير محذوف');
+  const exp = rows[0];
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  if (await isDayClosed(today)) {
+    throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
+  }
+
+  // ME-D safety check: verify the account still has
+  // enough balance before debiting. Otherwise restore creates a negative balance.
+  if (exp.account_id) {
+    const acctRows = await dbClient.query(
+      `SELECT balance, name FROM accounts WHERE id = ?`,
+      [exp.account_id]
+    );
+    if (!acctRows.length) {
+      throw new Error('الحساب المرتبط بالمصروف لم يعد موجوداً');
+    }
+    if (acctRows[0].balance < exp.amount) {
+      throw new Error(
+        `الرصيد غير كافٍ في ${acctRows[0].name} لإعادة هذا المصروف ` +
+        `(المطلوب: ${formatMoney(exp.amount)}, المتاح: ${formatMoney(acctRows[0].balance)})`
+      );
+    }
+  }
+
+  const now = new Date().toISOString();
+  const deviceId = getDeviceId();
+  const tx: { sql: string; params: any[] }[] = [];
+
+  // 1. Clear deleted_at
+  tx.push({
+    sql: `UPDATE expenses SET deleted_at = NULL, updated_at = ? WHERE id = ?`,
+    params: [now, id],
+  });
+
+  if (exp.account_id) {
+    // 2. Re-debit the account
+    tx.push({
+      sql: `UPDATE accounts SET balance = balance - ?, updated_at = ? WHERE id = ?`,
+      params: [exp.amount, now, exp.account_id],
+    });
+
+    // 3. Re-apply ledger entry
+    tx.push({
+      sql: `INSERT INTO ledger_entries
+              (id, entry_date, account_id, account_name, type, amount,
+               ref_type, ref_id, description, created_at, updated_at, device_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [
+        nanoid(), today, exp.account_id, exp.account_name,
+        'debit', exp.amount, 'expense', id,
+        `استعادة مصروف: ${exp.expense_number} — ${exp.description}`,
+        now, now, deviceId,
+      ],
+    });
+  }
+
+  await dbClient.batchRun(tx);
+  await logAudit(
+    'استعادة_مصروف',
+    `${exp.expense_number} — ${formatMoney(exp.amount)}`,
+    'expense', id
+  );
+}
+
+// ── Trash listing for the Settings → Trash tab ─────────────────────────────
+export async function getDeletedExpenses(): Promise<Expense[]> {
+  const results = await dbClient.query(
+    `SELECT * FROM expenses WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+  );
   return results as Expense[];
 }

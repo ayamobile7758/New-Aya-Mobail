@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getFilteredExpenses, addExpense, getExpenseCategories } from '@/db/queries/expenses';
+import { getFilteredExpenses, addExpense, getExpenseCategories, deleteExpense } from '@/db/queries/expenses';
 import { getActiveAccounts } from '@/db/queries/accounts';
 import { formatMoney, parseMoney } from '@/lib/money';
-import { Plus, Receipt, CheckCircle, Settings, Download, Calendar } from 'lucide-react';
+import { Plus, Receipt, CheckCircle, Settings, Download, Calendar, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseCategoriesDialog } from './components/ExpenseCategoriesDialog';
 import { format } from 'date-fns';
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
+  const { requireAdminAction } = useAuth();
   const [isAddMode, setIsAddMode] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [amountInput, setAmountInput] = useState('');
@@ -298,8 +300,29 @@ export default function ExpensesPage() {
                         <p className="text-secondary text-sm">{expense.description}</p>
                         <p className="text-xs text-text-secondary mt-1">عبر: {expense.account_name}</p>
                       </div>
-                      <div className="font-bold text-lg text-danger numeric whitespace-nowrap bg-danger-bg px-3 py-1 rounded-lg">
-                        - {formatMoney(expense.amount)}
+                      <div className="flex items-center gap-3 self-end md:self-center">
+                        <div className="font-bold text-lg text-danger numeric whitespace-nowrap bg-danger-bg px-3 py-1 rounded-lg">
+                          - {formatMoney(expense.amount)}
+                        </div>
+                        <button
+                          onClick={() => requireAdminAction(async () => {
+                            if (!confirm('هل أنت متأكد من حذف هذا المصروف؟ سيتم إرجاع المبلغ للحساب.')) return;
+                            try {
+                              await deleteExpense(expense.id);
+                              queryClient.invalidateQueries({ queryKey: ['expenses-filtered', startDate, endDate] });
+                              queryClient.invalidateQueries({ queryKey: ['active-accounts'] });
+                              queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
+                              queryClient.invalidateQueries({ queryKey: ['report'] });
+                              toast.success('تم حذف المصروف بنجاح');
+                            } catch (e: any) {
+                              toast.error(e.message);
+                            }
+                          })}
+                          className="p-2 text-text-secondary hover:text-danger hover:bg-danger/10 rounded-full transition-colors"
+                          aria-label="حذف"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   );

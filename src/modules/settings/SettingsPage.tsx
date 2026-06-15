@@ -13,6 +13,8 @@ import { getCategories, addCategory, updateCategory, deleteCategory, Category, g
 import { getDeletedProducts, restoreProduct } from '@/db/queries/products';
 import { getDeletedAccounts, restoreAccount } from '@/db/queries/accounts';
 import { getDeletedJobs, restoreJob } from '@/db/queries/maintenance';
+import { getDeletedExpenses, restoreExpense } from '@/db/queries/expenses';
+import { formatMoney } from '@/lib/money';
 import { format, parseISO } from 'date-fns';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -259,6 +261,11 @@ export default function SettingsPage() {
     queryFn: getDeletedJobs,
     enabled: activeTab === 'trash',
   });
+  const { data: deletedExpenses = [], refetch: refetchDelExpenses } = useQuery({
+    queryKey: ['deleted_expenses'],
+    queryFn: getDeletedExpenses,
+    enabled: activeTab === 'trash',
+  });
 
   const restoreProductMutation = useMutation({
     mutationFn: (id: string) => restoreProduct(id),
@@ -297,6 +304,17 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['maintenance_jobs'] });
       refetchDelJobs();
       toast.success('تمت استعادة مهمة الصيانة');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const restoreExpenseMutation = useMutation({
+    mutationFn: (id: string) => restoreExpense(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deleted_expenses'] });
+      qc.invalidateQueries({ queryKey: ['expenses-filtered'] });
+      qc.invalidateQueries({ queryKey: ['active-accounts'] });
+      refetchDelExpenses();
+      toast.success('تمت استعادة المصروف');
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1245,6 +1263,49 @@ export default function SettingsPage() {
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => requireAdminAction(() => restoreJobMutation.mutate(j.id))}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                                >
+                                  استعادة
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Deleted Expenses */}
+                <div>
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>المصروفات</h3>
+                  {deletedExpenses.length === 0 ? (
+                    <p className="text-sm text-text-secondary px-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>لا توجد مصروفات محذوفة</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted text-text-secondary">
+                          <tr>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>رقم المصروف</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>البيان</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>المبلغ</th>
+                            <th className="px-4 py-3 text-start whitespace-nowrap" style={{ fontFamily: 'Tajawal, sans-serif' }}>تاريخ الحذف</th>
+                            <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {deletedExpenses.map(exp => (
+                            <tr key={exp.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 font-mono text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>{exp.expense_number}</td>
+                              <td className="px-4 py-3 text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>{exp.description}</td>
+                              <td className="px-4 py-3 font-bold text-danger numeric">{formatMoney(exp.amount)}</td>
+                              <td className="px-4 py-3 text-text-secondary whitespace-nowrap numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
+                                {exp.deleted_at ? format(parseISO(exp.deleted_at), 'yyyy-MM-dd HH:mm') : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => requireAdminAction(() => restoreExpenseMutation.mutate(exp.id))}
                                   className="px-3 py-1 text-xs font-bold rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
                                   style={{ fontFamily: 'Tajawal, sans-serif' }}
                                 >
