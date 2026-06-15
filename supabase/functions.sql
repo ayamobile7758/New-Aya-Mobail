@@ -37,44 +37,53 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  parsed_query text := query_text;
-  param_count int := jsonb_array_length(params);
+  parsed_query text := '';
+  param_count int := jsonb_array_length(COALESCE(params, '[]'::jsonb));
   i int;
   val jsonb;
   val_text text;
   inlined_val text;
-  pos int;
   result_rows jsonb := '[]'::jsonb;
   affected_rows int := 0;
   r record;
+  segments text[];
+  num_segments int;
 BEGIN
-  -- Convert '?' placeholders to inlined parameters in order
-  FOR i IN 0..(param_count - 1) LOOP
-    val := params -> i;
-    pos := strpos(parsed_query, '?');
-    IF pos = 0 THEN
-      EXIT;
-    END IF;
-    
-    val_text := jsonb_build_array(val)->>0;
-    
-    IF jsonb_typeof(val) = 'null' THEN
-      inlined_val := 'NULL';
-    ELSIF jsonb_typeof(val) = 'string' THEN
-      inlined_val := quote_literal(val_text);
-    ELSIF jsonb_typeof(val) = 'number' THEN
-      inlined_val := val_text || '::numeric';
-    ELSIF jsonb_typeof(val) = 'boolean' THEN
-      IF val_text = 'true' THEN
-        inlined_val := '1';
+  IF query_text IS NULL THEN
+    RETURN jsonb_build_object('rows', '[]'::jsonb, 'rowCount', 0);
+  END IF;
+
+  segments := string_to_array(query_text, '?');
+  num_segments := array_length(segments, 1);
+
+  FOR i IN 1..num_segments LOOP
+    parsed_query := parsed_query || segments[i];
+    IF i < num_segments THEN
+      IF (i - 1) < param_count THEN
+        val := params -> (i - 1);
+        val_text := jsonb_build_array(val)->>0;
+        
+        IF jsonb_typeof(val) = 'null' THEN
+          inlined_val := 'NULL';
+        ELSIF jsonb_typeof(val) = 'string' THEN
+          inlined_val := quote_literal(val_text);
+        ELSIF jsonb_typeof(val) = 'number' THEN
+          inlined_val := val_text || '::numeric';
+        ELSIF jsonb_typeof(val) = 'boolean' THEN
+          IF val_text = 'true' THEN
+            inlined_val := '1';
+          ELSE
+            inlined_val := '0';
+          END IF;
+        ELSE
+          inlined_val := quote_literal(val::text) || '::jsonb';
+        END IF;
+        
+        parsed_query := parsed_query || inlined_val;
       ELSE
-        inlined_val := '0';
+        parsed_query := parsed_query || '?';
       END IF;
-    ELSE
-      inlined_val := quote_literal(val::text) || '::jsonb';
     END IF;
-    
-    parsed_query := substr(parsed_query, 1, pos - 1) || inlined_val || substr(parsed_query, pos + 1);
   END LOOP;
 
   -- Execute the query. If it contains SELECT or RETURNING, treat it as returning rows.
@@ -108,48 +117,55 @@ DECLARE
   val jsonb;
   val_text text;
   inlined_val text;
-  pos int;
   affected_rows int;
   total_affected_rows int := 0;
+  segments text[];
+  num_segments int;
 BEGIN
   FOR stmt IN SELECT * FROM jsonb_array_elements(statements) LOOP
     query_text := stmt ->> 'sql';
     params := COALESCE(stmt -> 'params', '[]'::jsonb);
-    parsed_query := query_text;
-    param_count := jsonb_array_length(params);
+    parsed_query := '';
     
-    -- Inline parameters
-    FOR i IN 0..(param_count - 1) LOOP
-      val := params -> i;
-      pos := strpos(parsed_query, '?');
-      IF pos = 0 THEN
-        EXIT;
-      END IF;
+    IF query_text IS NOT NULL THEN
+      segments := string_to_array(query_text, '?');
+      num_segments := array_length(segments, 1);
+      param_count := jsonb_array_length(params);
       
-      val_text := jsonb_build_array(val)->>0;
-      
-      IF jsonb_typeof(val) = 'null' THEN
-        inlined_val := 'NULL';
-      ELSIF jsonb_typeof(val) = 'string' THEN
-        inlined_val := quote_literal(val_text);
-      ELSIF jsonb_typeof(val) = 'number' THEN
-        inlined_val := val_text || '::numeric';
-      ELSIF jsonb_typeof(val) = 'boolean' THEN
-        IF val_text = 'true' THEN
-          inlined_val := '1';
-        ELSE
-          inlined_val := '0';
+      FOR i IN 1..num_segments LOOP
+        parsed_query := parsed_query || segments[i];
+        IF i < num_segments THEN
+          IF (i - 1) < param_count THEN
+            val := params -> (i - 1);
+            val_text := jsonb_build_array(val)->>0;
+            
+            IF jsonb_typeof(val) = 'null' THEN
+              inlined_val := 'NULL';
+            ELSIF jsonb_typeof(val) = 'string' THEN
+              inlined_val := quote_literal(val_text);
+            ELSIF jsonb_typeof(val) = 'number' THEN
+              inlined_val := val_text || '::numeric';
+            ELSIF jsonb_typeof(val) = 'boolean' THEN
+              IF val_text = 'true' THEN
+                inlined_val := '1';
+              ELSE
+                inlined_val := '0';
+              END IF;
+            ELSE
+              inlined_val := quote_literal(val::text) || '::jsonb';
+            END IF;
+            
+            parsed_query := parsed_query || inlined_val;
+          ELSE
+            parsed_query := parsed_query || '?';
+          END IF;
         END IF;
-      ELSE
-        inlined_val := quote_literal(val::text) || '::jsonb';
-      END IF;
-      
-      parsed_query := substr(parsed_query, 1, pos - 1) || inlined_val || substr(parsed_query, pos + 1);
-    END LOOP;
+      END LOOP;
 
-    EXECUTE parsed_query;
-    GET DIAGNOSTICS affected_rows = ROW_COUNT;
-    total_affected_rows := total_affected_rows + affected_rows;
+      EXECUTE parsed_query;
+      GET DIAGNOSTICS affected_rows = ROW_COUNT;
+      total_affected_rows := total_affected_rows + affected_rows;
+    END IF;
   END LOOP;
 
   RETURN jsonb_build_object('success', true, 'rowCount', total_affected_rows);
