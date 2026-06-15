@@ -42,7 +42,7 @@ export async function getAuditLog(opts?: {
     conditions.push(`action IN (${actions.map(() => '?').join(',')})`);
     params.push(...actions);
   }
-  if (search)   { conditions.push("detail LIKE ?"); params.push(`%${search}%`); }
+  if (search)   { conditions.push("detail ILIKE ?"); params.push(`%${search}%`); }
   if (deviceId) { conditions.push("device_id = ?"); params.push(deviceId); }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

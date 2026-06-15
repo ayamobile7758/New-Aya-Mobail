@@ -39,8 +39,12 @@ export function formatMoney(fils: number, currency = 'د.أ'): string {
 
 // 6. Parse user input string to fils
 export function parseMoney(input: string): number {
+  // LO-D: normalize Arabic-Indic digits (٠-٩) to Western digits before parsing
+  const normalized = input.replace(/[٠-٩]/g, d =>
+    String.fromCharCode(d.charCodeAt(0) - 1632 + 48)
+  );
   // Remove anything that is not a digit or a dot or minus sign
-  const cleaned = input.replace(/[^0-9.-]+/g, '');
+  const cleaned = normalized.replace(/[^0-9.-]+/g, '');
   if (!cleaned) return 0;
   
   const parsed = parseFloat(cleaned);

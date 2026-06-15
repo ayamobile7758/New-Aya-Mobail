@@ -28,7 +28,7 @@ export default function POSPage() {
     <div className="h-full flex relative overflow-hidden bg-background">
 
       {/* ── Tablet/Desktop Cart Sidebar — 360px, RIGHT side (first in RTL flex) ── */}
-      <div className="hidden md:flex w-[360px] shrink-0 h-full border-e border-border bg-surface shadow-[4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 flex-col">
+      <div className="hidden md:flex md:w-[320px] lg:w-[360px] shrink-0 h-full border-e border-border bg-surface shadow-[4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 flex-col">
         <CartSidebar />
       </div>
 

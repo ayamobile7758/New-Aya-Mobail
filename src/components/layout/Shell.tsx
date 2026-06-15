@@ -78,26 +78,10 @@ export function Shell() {
       {adminMinsLeft > 0 && (
         <div
           dir="rtl"
-          style={{
-            position: 'fixed',
-            top: '8px',
-            insetInlineEnd: '8px',
-            zIndex: 30,
-            background: '#CF694A',
-            color: 'white',
-            borderRadius: '999px',
-            padding: '4px 12px',
-            fontSize: '12px',
-            fontWeight: 700,
-            fontFamily: 'Tajawal, sans-serif',
-            boxShadow: '0 2px 8px rgba(207, 105, 74, 0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            pointerEvents: 'none',
-          }}
+          className="fixed top-2 end-2 z-30 bg-[#CF694A] text-white rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 pointer-events-none"
+          style={{ fontFamily: 'Tajawal, sans-serif' }}
         >
-          <Shield style={{ width: '12px', height: '12px' }} />
+          <Shield className="w-3 h-3" />
           وضع المشرف نشط · {adminMinsLeft} د
         </div>
       )}

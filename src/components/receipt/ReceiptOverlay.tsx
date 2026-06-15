@@ -55,7 +55,7 @@ export function ReceiptOverlay({ isOpen, onClose, invoice }: ReceiptOverlayProps
                 <thead>
                   <tr className="border-b border-dashed border-border">
                     <th className="py-2 font-bold text-start">المنتج</th>
-                    <th className="py-2 transform font-bold text-center">الكمية</th>
+                    <th className="py-2 font-bold text-center">الكمية</th>
                     <th className="py-2 text-end font-bold">الإجمالي</th>
                   </tr>
                 </thead>

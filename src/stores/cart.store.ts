@@ -216,6 +216,12 @@ export const useCartStore = create<CartState>()(
 
       getTotalDiscount: () => {
         const state = get();
+        // ME-B: client vs server discount distribution
+        // Client (this file) computes: sum(per-item discounts) + lump global discount.
+        // Server (sales.ts) redistributes the global portion proportionally
+        // across non-gift items with last-item-absorbs-rounding. The SUMS are
+        // mathematically equal; only the per-item allocation differs. The
+        // client formula is sufficient for the displayed cart total.
         const itemsDiscount = state.items.reduce(
           (sum, item) => addMoney(sum, calculateItemLineTotal(item).discountAmt), 0
         );
@@ -242,6 +248,10 @@ export const useCartStore = create<CartState>()(
     {
       name: 'active_cart',
       storage: createJSONStorage(() => localStorage),
+      // LO-E: localStorage quota risk is accepted for single-shop deployment.
+      // Cart size is bounded by typical retail sessions (< 50 items).
+      // If a quota error occurs, Zustand will fail silently and the cart will
+      // simply not persist across reloads — acceptable degradation.
       partialize: (state) => ({
         items: state.items,
         globalDiscountType: state.globalDiscountType,
