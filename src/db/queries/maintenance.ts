@@ -92,14 +92,16 @@ export async function updateJobStatus(id: string, status: MaintenanceJob['status
   const dateStr = format(now, 'yyyy-MM-dd HH:mm:ss');
   const onlyDateStr = format(now, 'yyyy-MM-dd');
   const deviceId = getDeviceId();
+
+  // HI-E: any status mutation that touches a closed day's row corrupts the snapshot.
+  // Apply the guard universally — not only on delivery.
+  if (await isDayClosed(onlyDateStr)) {
+    throw new Error(`يوم ${onlyDateStr} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
+  }
   
   if (status === 'delivered') {
     if (final_amount === undefined || !payment_account_id) {
         throw new Error('Final amount and account are required for delivery');
-    }
-
-    if (await isDayClosed(onlyDateStr)) {
-      throw new Error(`يوم ${onlyDateStr} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
     }
 
     // منع التسليم المزدوج

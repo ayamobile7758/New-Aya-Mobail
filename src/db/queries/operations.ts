@@ -128,16 +128,19 @@ export async function createTopup({
   supplier_id,
   amount,
   cost,
-  profit,
+  profit: _ignoredProfit,
   notes
 }: {
   account_id: string;
   supplier_id?: string;
   amount: number;
   cost: number;
-  profit: number;
+  profit?: number;
   notes?: string;
 }) {
+  // HI-C: compute profit server-side; never trust client value
+  const profit = amount - cost;
+
   const now = new Date();
   const dateStr = format(now, 'yyyy-MM-dd');
   if (await isDayClosed(dateStr)) {

@@ -519,7 +519,7 @@ export function CartSidebar() {
 
                     {/* Gift toggle */}
                     <button
-                      onClick={() => setItemGift(item.cartItemId, !item.isGift)}
+                      onClick={() => requireAdminAction(() => setItemGift(item.cartItemId, !item.isGift))}
                       style={{
                         flexShrink: 0,
                         background: item.isGift ? '#DCFCE7' : 'var(--color-surface, white)',
