@@ -25,6 +25,8 @@ import indexesSql from './011_indexes.sql?raw';
 import multidevicePrepSql from './012_multidevice_prep.sql?raw';
 // @ts-ignore
 import addTopupMaintenanceToClosuresSql from './013_add_topup_maintenance_to_closures.sql?raw';
+// @ts-ignore
+import centralAuthSettingsSql from './014_central_auth_settings.sql?raw';
 
 import { supabaseAdapter } from '../supabaseAdapter';
 
@@ -42,6 +44,7 @@ const migrations = [
   { version: 11, sql: indexesSql },
   { version: 12, sql: multidevicePrepSql },
   { version: 13, sql: addTopupMaintenanceToClosuresSql },
+  { version: 14, sql: centralAuthSettingsSql },
 ];
 
 export async function runMigrations() {

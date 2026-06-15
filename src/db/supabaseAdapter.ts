@@ -68,9 +68,9 @@ export const supabaseAdapter = {
   },
 
   async getVersion(): Promise<number> {
-    // Return a constant matching the latest migration (13)
+    // Return a constant matching the latest migration (14)
     // so runMigrations() does not replay SQLite migrations.
-    return 13;
+    return 14;
   },
 
   async setVersion(_version: number): Promise<void> {

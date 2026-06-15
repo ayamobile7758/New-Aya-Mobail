@@ -503,3 +503,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE sequences;
 ALTER TABLE day_closures ADD COLUMN topup_profit INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE day_closures ADD COLUMN maintenance_revenue INTEGER NOT NULL DEFAULT 0;
 
+
+-- Migration 014 Central Auth Settings
+CREATE TABLE IF NOT EXISTS app_settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL,           -- JSON string: {hash, salt} or {enabled, hash, salt}
+  updated_at  TEXT,
+  device_id   TEXT
+);
+
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_all" ON app_settings FOR ALL TO anon USING (true) WITH CHECK (true);
+
