@@ -68,8 +68,6 @@ export async function completeSale(data: {
     accounts.forEach(a => accountMap.set(a.id, { name: a.name, feePercent: a.fee_percent }));
   }
 
-  const stmts: { sql: string; params: any[] }[] = [];
-
   // 1. Get next invoice number — atomic: ON CONFLICT increments and returns new value
   const seqRow = await dbClient.query(
     `INSERT INTO sequences (name, last_val) VALUES (?, 1)
@@ -81,16 +79,7 @@ export async function completeSale(data: {
 
   const invoiceNumber = generateSequenceNumber('INV', nextVal - 1, 6);
 
-  // 2. Create invoice
-  stmts.push({
-    sql: `INSERT INTO invoices (id, invoice_number, invoice_date, customer_id, customer_name, customer_phone,
-            subtotal, discount_amount, total_amount, paid_amount, created_at, updated_at, device_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    params: [invoiceId, invoiceNumber, today, null, null, null,
-      subtotal, totalDiscount, totalAmount, paidAmount, now, now, deviceId],
-  });
-
-  // 3. Compute per-item line data using shared helper
+  // 2. Compute per-item line data using shared helper
   const itemLineData = cartItems.map(item => {
     const unitPrice = item.overridePrice !== undefined ? item.overridePrice : item.product.sale_price;
     const { subtotal: itemSub, discountAmt: perItemDiscount, total: afterPerItem } = calculateItemLineTotal(item);
@@ -123,80 +112,43 @@ export async function completeSale(data: {
     }
   });
 
-  // HI-D: snapshot expected post-sale stock for tracked items, used for post-batch verification.
-  const expectedStockAfter = new Map<string, number>();
-  for (const item of cartItems) {
-    if (item.product.track_stock) {
-      const p = productMap.get(item.product.id);
-      if (p) {
-        const prev = expectedStockAfter.get(item.product.id) ?? p.stock_qty;
-        expectedStockAfter.set(item.product.id, prev - item.quantity);
-      }
-    }
-  }
-
-  // 4. Insert items and update stock
+  // 3. Assemble payload items
+  const itemsPayload = [];
   for (let i = 0; i < cartItems.length; i++) {
     const { item, unitPrice, itemSub, perItemDiscount } = itemLineData[i];
     const itemId = nanoid();
 
+    let discountAmount = 0;
+    let lineTotal = 0;
+    let isGift = 0;
+
     if (item.isGift) {
-      // Gift line: line_total = 0, is_gift = 1, discount_amount = full subtotal,
-      // unit_cost recorded for correct profit calculation
-      stmts.push({
-        sql: `INSERT INTO invoice_items
-                (id, invoice_id, product_id, product_name, quantity,
-                 unit_price, unit_cost, product_category, discount_amount, line_total, is_gift,
-                 updated_at, device_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        params: [
-          itemId, invoiceId,
-          item.product.id, item.product.name, item.quantity,
-          unitPrice,
-          item.product.cost_price ?? 0,
-          item.product.category,
-          itemSub,
-          0,
-          1,
-          now, deviceId,
-        ],
-      });
+      discountAmount = itemSub;
+      lineTotal = 0;
+      isGift = 1;
     } else {
-      const discountAmount = perItemDiscount + globalShares[i];
-      const lineTotal = Math.max(0, itemSub - discountAmount);
-      stmts.push({
-        sql: `INSERT INTO invoice_items
-                (id, invoice_id, product_id, product_name, quantity,
-                 unit_price, unit_cost, product_category, discount_amount, line_total, is_gift,
-                 updated_at, device_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        params: [
-          itemId, invoiceId,
-          item.product.id, item.product.name, item.quantity,
-          unitPrice,
-          item.product.cost_price ?? 0,
-          item.product.category,
-          discountAmount,
-          lineTotal,
-          0,
-          now, deviceId,
-        ],
-      });
+      discountAmount = perItemDiscount + globalShares[i];
+      lineTotal = Math.max(0, itemSub - discountAmount);
+      isGift = 0;
     }
 
-    if (item.product.track_stock) {
-      // batchRun does not raise on zero-row UPDATEs; the P1 pre-fetch guard above
-      // is the effective safety net on a single tablet. The WHERE stock_qty >= ?
-      // condition is harmless and forward-compatible for multi-tablet use.
-      // Strict atomic enforcement comes with Supabase RPC in Phase 7.
-      stmts.push({
-        sql: `UPDATE products SET stock_qty = stock_qty - ?, updated_at = ? WHERE id = ? AND track_stock = 1 AND stock_qty >= ?`,
-        params: [item.quantity, now, item.product.id, item.quantity],
-      });
-    }
+    itemsPayload.push({
+      id: itemId,
+      product_id: item.product.id,
+      product_name: item.product.name,
+      quantity: item.quantity,
+      unit_price: unitPrice,
+      unit_cost: item.product.cost_price ?? 0,
+      product_category: item.product.category,
+      discount_amount: discountAmount,
+      line_total: lineTotal,
+      is_gift: isGift,
+      track_stock: item.product.track_stock ? 1 : 0
+    });
   }
 
-  // 5. Create payments and update account ledger
+  // 4. Assemble payload payments
+  const paymentsPayload = [];
   for (const payment of payments) {
     if (payment.amount <= 0) continue;
     const paymentId = nanoid();
@@ -205,53 +157,44 @@ export async function completeSale(data: {
     // Divide by 10 to convert to standard percent before applyPercent
     const feeAmount = applyPercent(payment.amount, (acct?.feePercent ?? 0) / 10);
     const netAmount = payment.amount - feeAmount;
-    stmts.push({
-      sql: `INSERT INTO invoice_payments (id, invoice_id, account_id, amount, fee_amount, updated_at, device_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      params: [paymentId, invoiceId, payment.accountId, payment.amount, feeAmount, now, deviceId],
-    });
-    // Atomic: single-statement UPDATE inside SQLite transaction.
-    stmts.push({
-      sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
-      params: [netAmount, now, payment.accountId],
-    });
-    stmts.push({
-      sql: `INSERT INTO ledger_entries
-              (id, entry_date, account_id, account_name, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      params: [
-        nanoid(), today, payment.accountId,
-        acct?.name ?? null,
-        'credit', netAmount, 'invoice', invoiceId,
-        `مبيعات فاتورة رقم ${invoiceNumber}`, now, now, deviceId,
-      ],
+
+    paymentsPayload.push({
+      id: paymentId,
+      account_id: payment.accountId,
+      amount: payment.amount,
+      fee_amount: feeAmount,
+      net_amount: netAmount,
+      account_name: acct?.name ?? null,
+      ledger_entry_id: nanoid()
     });
   }
 
-  await dbClient.batchRun(stmts);
+  const payload = {
+    id: invoiceId,
+    invoice_number: invoiceNumber,
+    invoice_date: today,
+    subtotal,
+    discount_amount: totalDiscount,
+    total_amount: totalAmount,
+    paid_amount: paidAmount,
+    created_at: now,
+    updated_at: now,
+    device_id: deviceId,
+    items: itemsPayload,
+    payments: paymentsPayload
+  };
 
-  // HI-D: post-batch oversell detection. Single-shop trust model: invoice is
-  // already recorded (cannot be rolled back without RPC support in Phase 7).
-  // Surface a flagged audit entry so the owner can reconcile inventory manually.
-  if (expectedStockAfter.size > 0) {
-    const ids = Array.from(expectedStockAfter.keys());
-    const placeholders = ids.map(() => '?').join(',');
-    const actualRows = await dbClient.query(
-      `SELECT id, stock_qty FROM products WHERE id IN (${placeholders})`,
-      ids
-    );
-    for (const row of actualRows) {
-      const expected = expectedStockAfter.get(row.id);
-      if (expected !== undefined && row.stock_qty !== expected) {
-        // Stock did not decrement as expected — concurrent sale on another tablet.
-        // The current invoice is intact; flag the inventory drift for manual review.
-        await logAudit(
-          'تنبيه_تجاوز_مخزون',
-          `فاتورة ${invoiceNumber} — منتج ${row.id} — متوقع ${expected}, فعلي ${row.stock_qty} — راجع المخزون يدوياً`,
-          'invoice',
-          invoiceId
-        );
-      }
+  try {
+    await dbClient.completeSaleRpc(payload);
+  } catch (err: any) {
+    const msg = err.message || '';
+    if (msg.includes('INSUFFICIENT_STOCK:')) {
+      const productId = msg.split('INSUFFICIENT_STOCK:')[1]?.split('\n')[0]?.trim() || '';
+      const p = productMap.get(productId);
+      const name = p?.name || productId;
+      throw new Error(`الكمية غير متوفرة للمنتج ${name} — تم بيعها على جهاز آخر. أعد المحاولة.`);
     }
+    throw err;
   }
 
   // P4: تسجيل سجل التدقيق — يشمل ملخص الهدايا والخصومات والأسعار المعدَّلة

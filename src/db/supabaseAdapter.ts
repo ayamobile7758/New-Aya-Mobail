@@ -54,6 +54,19 @@ export const supabaseAdapter = {
     return true;
   },
 
+  async completeSaleRpc(payload: any): Promise<{ invoiceId: string; invoiceNumber: string }> {
+    const { data, error } = await supabase.rpc('complete_sale', {
+      payload,
+    });
+
+    if (error) {
+      console.error('complete_sale RPC error:', error, { payload });
+      throw new Error(error.message || 'Database error completing sale');
+    }
+
+    return data as { invoiceId: string; invoiceNumber: string };
+  },
+
   async getVersion(): Promise<number> {
     // Return a constant matching the latest migration (13)
     // so runMigrations() does not replay SQLite migrations.
