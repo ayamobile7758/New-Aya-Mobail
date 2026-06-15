@@ -139,7 +139,7 @@ export default function SalesPage() {
 
       {/* ── Header + Filter bar ── */}
       <header className="bg-surface border-b border-border p-4 shrink-0">
-        <div className="max-w-4xl mx-auto space-y-3">
+        <div className="max-w-6xl mx-auto space-y-3">
 
           {/* Title */}
           <div className="flex items-center gap-3">
@@ -242,7 +242,7 @@ export default function SalesPage() {
 
       {/* ── Invoice list ── */}
       <main className="flex-1 overflow-y-auto p-4 content-area">
-        <div className="max-w-4xl mx-auto space-y-3">
+        <div className="max-w-6xl mx-auto space-y-3">
           {isLoading ? (
             <div className="flex justify-center p-12">
               <div className="animate-spin w-8 h-8 border-4 border-accent/30 border-t-accent rounded-full" />

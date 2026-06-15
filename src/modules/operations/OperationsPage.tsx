@@ -138,7 +138,7 @@ export default function OperationsPage() {
     <div className="flex flex-col h-full bg-background">
       {/* ── Header ── */}
       <header className="bg-surface border-b border-border px-4 pt-4 sticky top-0 z-10 shrink-0">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
               <h1 className="text-2xl font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>الحركة المالية والسجل</h1>
@@ -205,7 +205,7 @@ export default function OperationsPage() {
 
       {/* ── Content ── */}
       <main className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
 
           {/* ══ LEDGER TAB ══════════════════════════════════════════════════ */}
           {activeTab === 'ledger' && (

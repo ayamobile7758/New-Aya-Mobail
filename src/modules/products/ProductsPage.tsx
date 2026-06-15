@@ -45,7 +45,7 @@ export default function ProductsPage() {
     <div className="flex flex-col h-full bg-background relative isolate">
       {/* Header */}
       <header className="bg-surface border-b border-border p-4 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">إدارة الأصناف والمستودع</h1>
             <button 
@@ -99,7 +99,7 @@ export default function ProductsPage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {isLoading ? (
             <div className="flex justify-center p-12">
               <div className="animate-spin w-8 h-8 border-4 border-accent/30 border-t-accent rounded-full"></div>

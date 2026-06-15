@@ -471,7 +471,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       <header className="bg-surface border-b border-border p-4 shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
+        <div className="max-w-6xl mx-auto flex items-center gap-3">
           <div className="w-12 h-12 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
             <Settings className="w-6 h-6" />
           </div>
@@ -483,7 +483,7 @@ export default function SettingsPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 content-area">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-6">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-6">
           
           {/* Sidebar Tabs */}
           <div className="w-full md:w-64 shrink-0 flex flex-col gap-2">

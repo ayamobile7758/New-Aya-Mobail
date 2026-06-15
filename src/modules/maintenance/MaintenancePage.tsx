@@ -107,7 +107,7 @@ export default function MaintenancePage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Wrench className="w-6 h-6 text-accent" /> صيانة الأجهزة
@@ -152,7 +152,7 @@ export default function MaintenancePage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 content-area">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {isLoading ? (
             <div className="p-12 text-center"><div className="animate-spin w-8 h-8 mx-auto border-4 border-accent/30 border-t-accent rounded-full"></div></div>
           ) : jobs.length === 0 ? (

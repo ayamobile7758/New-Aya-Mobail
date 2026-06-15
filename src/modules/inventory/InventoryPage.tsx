@@ -15,7 +15,7 @@ export default function InventoryPage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
               <PackageSearch className="w-6 h-6" />
@@ -62,7 +62,7 @@ export default function InventoryPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 bg-background content-area">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {activeTab === 'new_count' && <NewCountTab />}
           {activeTab === 'history' && <HistoryTab />}
           {activeTab === 'reconciliation' && <ReconciliationTab />}
