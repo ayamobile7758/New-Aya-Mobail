@@ -17,3 +17,7 @@ export async function initDatabase() {
   await dbClient.initDb();
 }
 
+export const isSupabaseMode = (): boolean => {
+  return !!import.meta.env.VITE_SUPABASE_URL;
+};
+

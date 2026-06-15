@@ -15,6 +15,7 @@ import { getDeletedAccounts, restoreAccount } from '@/db/queries/accounts';
 import { getDeletedJobs, restoreJob } from '@/db/queries/maintenance';
 import { getDeletedExpenses, restoreExpense } from '@/db/queries/expenses';
 import { formatMoney } from '@/lib/money';
+import { isSupabaseMode } from '@/db/client';
 import { format, parseISO } from 'date-fns';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -1328,51 +1329,60 @@ export default function SettingsPage() {
                   <HardDrive className="w-6 h-6 text-accent" /> النسخ الاحتياطي والاستعادة
                 </h2>
 
-                <div className="bg-warning-bg/30 border border-warning/30 p-4 rounded-xl mb-6 flex gap-3">
-                  <AlertTriangle className="w-6 h-6 text-warning shrink-0" />
-                  <div className="text-sm text-text-primary">
-                    <p className="font-bold mb-1">البيانات تخزن محلياً فقط!</p>
-                    <p>هذا المتجر يعمل بدون إنترنت ويخزن بياناته داخل متصفحك. <strong>يجب عليك أخذ نسخة احتياطية بشكل دوري</strong> لتجنب فقدان البيانات أو في حال أردت نقلها لجهاز آخر.</p>
+                {isSupabaseMode() ? (
+                  <div className="p-4 bg-muted rounded-xl border border-border">
+                    <p className="text-sm text-text-secondary leading-relaxed" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                      بياناتك محفوظة تلقائياً ومزامنة بشكل سحابي وآمن على خوادم Supabase. للحصول على نسخة من بياناتك، يرجى استخدام أزرار "تصدير CSV" المتوفرة في صفحة التقارير.
+                    </p>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border border-border rounded-xl p-5 flex flex-col items-center justify-center text-center gap-3">
-                    <div className="w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center">
-                      <Download className="w-6 h-6" />
+                ) : (
+                  <>
+                    <div className="bg-warning-bg/30 border border-warning/30 p-4 rounded-xl mb-6 flex gap-3">
+                      <AlertTriangle className="w-6 h-6 text-warning shrink-0" />
+                      <div className="text-sm text-text-primary">
+                        <p className="font-bold mb-1">البيانات تخزن محلياً فقط!</p>
+                        <p>هذا المتجر يعمل بدون إنترنت ويخزن بياناته داخل متصفحك. <strong>يجب عليك أخذ نسخة احتياطية بشكل دوري</strong> لتجنب فقدان البيانات أو في حال أردت نقلها لجهاز آخر.</p>
+                      </div>
                     </div>
-                    <h3 className="font-bold">أخذ نسخة احتياطية</h3>
-                    <p className="text-sm text-text-secondary">تحميل قاعدة البيانات الحالية لـحفظها في مكان آمن.</p>
-                    <button
-                      onClick={handleExportBackup}
-                      className="mt-2 w-full h-11 bg-success text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
-                    >
-                      تنزيل ملف النسخة
-                    </button>
-                  </div>
 
-                  <div className="border border-border rounded-xl p-5 flex flex-col items-center justify-center text-center gap-3">
-                    <div className="w-12 h-12 bg-accent/10 text-accent rounded-full flex items-center justify-center">
-                      <Upload className="w-6 h-6" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="border border-border rounded-xl p-5 flex flex-col items-center justify-center text-center gap-3">
+                        <div className="w-12 h-12 bg-success/10 text-success rounded-full flex items-center justify-center">
+                          <Download className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-bold">أخذ نسخة احتياطية</h3>
+                        <p className="text-sm text-text-secondary">تحميل قاعدة البيانات الحالية لـحفظها في مكان آمن.</p>
+                        <button
+                          onClick={handleExportBackup}
+                          className="mt-2 w-full h-11 bg-success text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+                        >
+                          تنزيل ملف النسخة
+                        </button>
+                      </div>
+
+                      <div className="border border-border rounded-xl p-5 flex flex-col items-center justify-center text-center gap-3">
+                        <div className="w-12 h-12 bg-accent/10 text-accent rounded-full flex items-center justify-center">
+                          <Upload className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-bold">استعادة نسخة</h3>
+                        <p className="text-sm text-text-secondary">رفع ملف نسخة سابقة واستعادة كامل البيانات منها.</p>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="mt-2 w-full h-11 border-2 border-accent text-accent font-bold rounded-lg hover:bg-accent/5 transition-colors"
+                        >
+                          اختيار ملف النسخة
+                        </button>
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          className="hidden" 
+                          accept=".db"
+                          onChange={handleImportBackup}
+                        />
+                      </div>
                     </div>
-                    <h3 className="font-bold">استعادة نسخة</h3>
-                    <p className="text-sm text-text-secondary">رفع ملف نسخة سابقة واستعادة كامل البيانات منها.</p>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="mt-2 w-full h-11 border-2 border-accent text-accent font-bold rounded-lg hover:bg-accent/5 transition-colors"
-                    >
-                      اختيار ملف النسخة
-                    </button>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      accept=".db"
-                      onChange={handleImportBackup}
-                    />
-                  </div>
-                </div>
-                
+                  </>
+                )}
               </div>
             )}
             

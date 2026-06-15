@@ -12,6 +12,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, parseISO } fr
 import * as XLSX from 'xlsx';
 import { DiscountsGiftsTab } from './DiscountsGiftsTab';
 import { ProfitLossTab } from './ProfitLossTab';
+import { exportInvoicesCSV, exportExpensesCSV, exportTopupsCSV, exportMaintenanceCSV } from '@/lib/csv-export';
 
 const ReactECharts = lazy(() => import('echarts-for-react'));
 
@@ -275,6 +276,42 @@ export default function ReportsPage() {
                 />
               </div>
             )}
+          </div>
+
+          {/* CSV Exports */}
+          <div className={cn('flex flex-wrap gap-2 my-2 pb-3 border-b border-dashed border-border', activeTab === 'pnl' && 'hidden')}>
+            <button
+              onClick={() => exportInvoicesCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+              style={{ fontFamily: 'Tajawal, sans-serif' }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير المبيعات (CSV)
+            </button>
+            <button
+              onClick={() => exportExpensesCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+              style={{ fontFamily: 'Tajawal, sans-serif' }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير المصروفات (CSV)
+            </button>
+            <button
+              onClick={() => exportTopupsCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+              style={{ fontFamily: 'Tajawal, sans-serif' }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير الشحن (CSV)
+            </button>
+            <button
+              onClick={() => exportMaintenanceCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+              style={{ fontFamily: 'Tajawal, sans-serif' }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير الصيانة (CSV)
+            </button>
           </div>
 
           {/* Tabs */}
