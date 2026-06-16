@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, ShoppingCart, Package, DollarSign, ArrowRightLeft, Wrench, BarChart2 } from 'lucide-react';
+import { Home, ShoppingCart, Package, DollarSign, ArrowRightLeft, Wrench, BarChart2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/operations', icon: ArrowRightLeft, label: 'العمليات', requiresPin: true },
   { path: '/maintenance', icon: Wrench, label: 'الصيانة', requiresPin: false },
   { path: '/reports', icon: BarChart2, label: 'التقارير', requiresPin: true },
+  { path: '/settings', icon: Settings, label: 'الإعدادات', requiresPin: true },
 ];
 
 export function SideRail({ className, forceCollapsed }: { className?: string, forceCollapsed?: boolean }) {

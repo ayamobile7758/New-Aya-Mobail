@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlocked, readSetting, isDailyLockEnabled, isMaintenanceEnabled } from '@/lib/auth';
+import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlocked, readSetting, isMaintenanceEnabled } from '@/lib/auth';
 import { Lock, Clock } from 'lucide-react';
 import { toastError, toastSuccess } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
@@ -20,6 +20,13 @@ export function DailyLockScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  const navigateTo = (path: string) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  };
+
   const handleKeypadSubmit = async (newPin: string) => {
     if (lockoutSecs > 0) return;
     
@@ -29,20 +36,19 @@ export function DailyLockScreen() {
       if (storedAdmin && await verifyCode(newPin, storedAdmin)) {
         await markUnlocked();
         grantAdminAccess();
+        navigateTo('/dashboard');
         toastSuccess("تم الدخول بصلاحيات المدير");
         return;
       }
 
-      // 2. Check daily lock if enabled
-      const dailyEnabled = await isDailyLockEnabled();
-      if (dailyEnabled) {
-        const storedDaily = await readSetting('daily_lock');
-        if (storedDaily && await verifyCode(newPin, storedDaily)) {
-          await markUnlocked();
-          grantPosAccess();
-          toastSuccess("تم الدخول بصلاحيات نقطة البيع");
-          return;
-        }
+      // 2. Check daily lock PIN (always allow unlock to POS if the code matches storedDaily)
+      const storedDaily = await readSetting('daily_lock');
+      if (storedDaily && await verifyCode(newPin, storedDaily)) {
+        await markUnlocked();
+        grantPosAccess();
+        navigateTo('/pos');
+        toastSuccess("تم الدخول بصلاحيات نقطة البيع");
+        return;
       }
 
       // 3. Check maintenance pin if enabled
@@ -52,6 +58,7 @@ export function DailyLockScreen() {
         if (storedMaint && await verifyCode(newPin, storedMaint)) {
           await markUnlocked();
           grantMaintenanceAccess();
+          navigateTo('/maintenance');
           toastSuccess("تم الدخول لوضع الصيانة");
           return;
         }

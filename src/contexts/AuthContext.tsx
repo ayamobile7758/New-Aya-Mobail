@@ -110,6 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const lockNow = async () => {
     await set('lastUnlockAt', null);
     setAccessLevel('locked');
+    if (window.location.pathname !== '/pos') {
+      window.history.pushState(null, '', '/pos');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   };
 
   const requireAdminAction = (callback: () => void) => {
