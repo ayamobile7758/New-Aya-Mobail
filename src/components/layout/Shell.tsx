@@ -67,7 +67,7 @@ export function Shell() {
           {/* Thin visual-only indicator line across the very top of every screen */}
           <div
             aria-hidden="true"
-            className="fixed top-0 inset-x-0 z-[60] h-[3px] bg-accent shadow-[0_0_6px_rgba(207,105,74,0.5)] pointer-events-none"
+            className="admin-mode-line fixed top-0 inset-x-0 z-[60] h-[3px] shadow-[0_0_6px_rgba(207,105,74,0.5)] pointer-events-none"
           />
           {/* Small floating exit button — bottom-start (left in RTL), above any bottom nav */}
           <button

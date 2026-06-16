@@ -81,3 +81,26 @@
   animation: float-up 600ms ease-out forwards;
 }
 
+/* Admin-mode top indicator: a soft gradient that glides right→left (RTL) */
+@keyframes admin-line-slide {
+  0%   { background-position: 200% 0; }
+  100% { background-position: 0% 0; }
+}
+
+.admin-mode-line {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-accent) 0%,
+    #13773A 25%,
+    var(--color-accent) 50%,
+    #13773A 75%,
+    var(--color-accent) 100%
+  );
+  background-size: 200% 100%;
+  animation: admin-line-slide 4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-mode-line { animation: none; }
+}
+
