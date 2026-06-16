@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { useCartStore } from '@/stores/cart.store';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog } from '@/components/ui/Dialog';
 
-export function SavedCartsTabs() {
+interface SavedCartsTabsProps {
+  itemCount?: number;
+  onClearCart?: () => void;
+  pulse?: boolean;
+}
+
+export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabsProps) {
   const { savedCarts, deleteCart } = useSavedCartsStore();
   const { activeCartId, switchToCart, items } = useCartStore();
   
@@ -52,7 +58,7 @@ export function SavedCartsTabs() {
 
   return (
     <>
-      <div className="h-12 w-full border-b border-border bg-background flex items-center px-2 z-10 shrink-0">
+      <div className={cn("h-12 w-full border-b border-border bg-background flex items-center px-2 z-10 shrink-0 transition-all", pulse && "bg-accent/10")}>
         <div className="flex-1 flex gap-2 h-full items-end overflow-x-auto no-scrollbar">
           {activeCartId === 'default' && items.length > 0 && (
             <div 
@@ -90,14 +96,26 @@ export function SavedCartsTabs() {
           {savedCarts.length < 3 && (
             <button
               onClick={handleAddCart}
-              className="h-10 flex items-center gap-1.5 px-3 bg-accent text-white rounded-t-lg font-bold text-xs transition-colors hover:bg-accent-hover shrink-0 mb-[3px] whitespace-nowrap shadow-sm"
-              style={{ fontFamily: 'Tajawal, sans-serif' }}
+              className="h-10 w-10 flex items-center justify-center bg-accent text-white rounded-t-lg font-bold transition-colors hover:bg-accent-hover shrink-0 mb-[3px] shadow-sm"
+              title="زبون جديد"
+              aria-label="زبون جديد"
+              style={{ touchAction: 'manipulation' }}
             >
-              <Plus className="w-4 h-4" />
-              زبون جديد
+              <Plus className="w-5 h-5" />
             </button>
           )}
         </div>
+        {itemCount !== undefined && itemCount > 0 && onClearCart && (
+          <button
+            onClick={onClearCart}
+            className="w-10 h-10 flex items-center justify-center text-danger hover:bg-danger/10 rounded-full transition-colors ms-2"
+            style={{ touchAction: 'manipulation' }}
+            title="مسح السلة"
+            aria-label="مسح السلة"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       <Dialog isOpen={cartToDelete !== null} onClose={() => setCartToDelete(null)} title="تأكيد الإغلاق">

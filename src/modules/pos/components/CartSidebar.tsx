@@ -372,22 +372,7 @@ export function CartSidebar() {
 
         {/* ── Cart header ── */}
         <div className="shrink-0 flex flex-col bg-background">
-          <div className={cn('px-3 py-2 border-b border-border flex items-center justify-between transition-all', pulse && 'bg-accent/10')}>
-            <h2 className="font-bold flex items-center gap-1.5" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '14px' }}>
-              السلة <span className="bg-accent text-white text-xs px-1.5 py-0.5 rounded-full">{items.length}</span>
-            </h2>
-            {items.length > 0 && (
-              <button
-                onClick={() => setConfirmClear(true)}
-                className="p-1.5 text-danger hover:bg-danger/10 rounded-full transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                title="مسح السلة"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <SavedCartsTabs />
+          <SavedCartsTabs itemCount={items.length} onClearCart={() => setConfirmClear(true)} pulse={pulse} />
         </div>
 
         {/* ── Items list ── */}
