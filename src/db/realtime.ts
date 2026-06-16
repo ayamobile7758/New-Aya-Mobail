@@ -20,7 +20,12 @@ export function setupRealtimeSync(queryClient: QueryClient) {
     audit_log: ['audit_log', 'audit_actions', 'audit_devices'],
   };
 
-  console.log('Initializing Supabase Realtime Sync...');
+  if (import.meta.env.DEV) {
+    console.log('Initializing Supabase Realtime Sync...');
+  }
+
+  const pendingInvalidations = new Set<string>();
+  let debounceTimer: any = null;
 
   const channel = supabase
     .channel('schema-db-changes')
@@ -29,21 +34,42 @@ export function setupRealtimeSync(queryClient: QueryClient) {
       { event: '*', schema: 'public' },
       (payload) => {
         const table = payload.table;
-        console.log(`Realtime DB change detected on table: ${table}`, payload.eventType);
+        if (import.meta.env.DEV) {
+          console.log(`Realtime DB change detected on table: ${table}`, payload.eventType);
+        }
         const keysToInvalidate = tableKeyMapping[table];
         if (keysToInvalidate) {
           keysToInvalidate.forEach(key => {
-            queryClient.invalidateQueries({ queryKey: [key] });
+            pendingInvalidations.add(key);
           });
+
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+
+          debounceTimer = setTimeout(() => {
+            pendingInvalidations.forEach(key => {
+              queryClient.invalidateQueries({ queryKey: [key] });
+            });
+            pendingInvalidations.clear();
+            debounceTimer = null;
+          }, 450);
         }
       }
     )
     .subscribe((status) => {
-      console.log('Supabase Realtime subscription status:', status);
+      if (import.meta.env.DEV) {
+        console.log('Supabase Realtime subscription status:', status);
+      }
     });
 
   return () => {
-    console.log('Cleaning up Supabase Realtime Sync...');
+    if (import.meta.env.DEV) {
+      console.log('Cleaning up Supabase Realtime Sync...');
+    }
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
     supabase.removeChannel(channel);
   };
 }
