@@ -28,11 +28,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { dbClient } from '../client';
+import { format } from 'date-fns';
 import { nanoid } from 'nanoid';
 import { logAudit } from './audit';
 import { getDeviceId } from '@/lib/device';
 import { formatMoney } from '@/lib/money';
-import { assertClockNotTampered } from '@/lib/clockGuard';
 
 
 export interface DayClosureSnapshot {
@@ -174,8 +174,7 @@ export async function closeDay(
   cashCounts: { accountId: string; actualCash: number }[],
   notes?: string
 ): Promise<void> {
-  // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
-  const today = await assertClockNotTampered();
+  const today = format(new Date(), 'yyyy-MM-dd');
   if (targetDate > today) {
     throw new Error('لا يمكن إقفال يوم مستقبلي');
   }

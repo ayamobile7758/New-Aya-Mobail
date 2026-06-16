@@ -15,7 +15,8 @@ export default defineConfig(({mode}) => {
         manifest: {
           name: 'نظام إدارة المتاجر',
           short_name: 'نقطة البيع',
-          description: 'نظام نقطة بيع متكامل يعمل بدون إنترنت',
+          // A-1: cloud-only — updated description to reflect that internet is required.
+          description: 'نظام نقطة بيع متكامل — يتطلب اتصالاً بالإنترنت',
           theme_color: '#F9F8F5',
           background_color: '#F9F8F5',
           display: 'standalone',

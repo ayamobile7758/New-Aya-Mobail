@@ -1,11 +1,11 @@
 import { dbClient } from '../client';
 import { nanoid } from 'nanoid';
 import { generateSequenceNumber } from '@/lib/utils';
-import { format } from 'date-fns';
 import { logAudit } from './audit';
 import { isDayClosed } from './closures';
 import { getDeviceId } from '@/lib/device';
 import { formatMoney } from '@/lib/money';
+import { assertClockNotTampered } from '@/lib/clockGuard';
 
 export interface ExpenseCategory {
   id: string;
@@ -72,7 +72,8 @@ export async function addExpense(data: {
 }) {
   const { amount, category_id, category_name, description, accountId, account_name } = data;
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
+  const today = await assertClockNotTampered();
   if (await isDayClosed(today)) {
     throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }
@@ -173,7 +174,8 @@ export async function deleteExpense(id: string): Promise<void> {
   if (!rows.length) throw new Error('المصروف غير موجود أو محذوف مسبقاً');
   const exp = rows[0];
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
+  const today = await assertClockNotTampered();
   if (await isDayClosed(today)) {
     throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }
@@ -229,7 +231,8 @@ export async function restoreExpense(id: string): Promise<void> {
   if (!rows.length) throw new Error('المصروف غير موجود أو غير محذوف');
   const exp = rows[0];
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
+  const today = await assertClockNotTampered();
   if (await isDayClosed(today)) {
     throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }
@@ -317,7 +320,8 @@ export async function updateExpense(id: string, data: {
   if (!rows.length) throw new Error('المصروف غير موجود أو محذوف مسبقاً');
   const exp = rows[0];
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
+  const today = await assertClockNotTampered();
   if (await isDayClosed(today)) {
     throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }

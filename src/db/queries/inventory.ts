@@ -4,11 +4,13 @@ import { nanoid } from 'nanoid';
 import { logAudit } from './audit';
 import { isDayClosed } from './closures';
 import { getDeviceId } from '@/lib/device';
+import { assertClockNotTampered } from '@/lib/clockGuard';
 
 export async function createInventoryCount(items: { product_id: string; system_qty: number; actual_qty: number; reason: string }[], notes?: string) {
   const now = new Date();
   const dateStr = format(now, 'yyyy-MM-dd HH:mm:ss');
-  const entryDate = format(now, 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(now, 'yyyy-MM-dd')`.
+  const entryDate = await assertClockNotTampered();
   if (await isDayClosed(entryDate)) {
     throw new Error(`يوم ${entryDate} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }
@@ -90,7 +92,8 @@ export async function getInventoryCounts() {
 
 export async function createAccountReconciliation(account_id: string, actual_balance: number) {
   const now = new Date();
-  const dateStr = format(now, 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(now, 'yyyy-MM-dd')`.
+  const dateStr = await assertClockNotTampered();
   if (await isDayClosed(dateStr)) {
     throw new Error(`يوم ${dateStr} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }

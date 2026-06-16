@@ -6,6 +6,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { initDatabase, isSupabaseMode } from './db/client';
 import { runMigrations } from './db/migrations';
 import { setupRealtimeSync } from './db/realtime';
+import { assertClockNotTampered } from './lib/clockGuard';
 import { Shell } from './components/layout/Shell';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { ensurePersistence } from './lib/storage';
@@ -60,6 +61,18 @@ export default function App() {
       try {
         await ensurePersistence();
         await initDatabase();
+        // C-9: seed last_known_date on boot so the guard works even if the
+        // user opens the app but doesn't make a sale. Non-fatal on failure
+        // (the guard will still work against the cached value).
+        try {
+          await assertClockNotTampered();
+        } catch (err: any) {
+          // If the clock was already rolled back before this boot, surface
+          // the error to the user instead of letting the app appear to load.
+          setDbState('error');
+          setErrorMsg(err.message || 'Clock tampering detected');
+          return;
+        }
       } catch (err: any) {
         setDbState('error');
         setErrorMsg(err.message || 'Unknown database error');

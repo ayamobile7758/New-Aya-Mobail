@@ -1,12 +1,12 @@
 import { dbClient } from '../client';
 import { nanoid } from 'nanoid';
 import { generateSequenceNumber } from '@/lib/utils';
-import { format } from 'date-fns';
 import { useCartStore, calculateItemLineTotal } from '@/stores/cart.store';
 import { logAudit } from './audit';
-import { applyPercent, formatMoney } from '@/lib/money';
+import { formatMoney } from '@/lib/money';
 import { isDayClosed } from './closures';
 import { getDeviceId } from '@/lib/device';
+import { assertClockNotTampered } from '@/lib/clockGuard';
 
 export async function completeSale(data: {
   cartItems: ReturnType<typeof useCartStore.getState>['items'];
@@ -41,7 +41,8 @@ export async function completeSale(data: {
   // ───────────────────────────────────────────────────────────────
 
   const invoiceId = nanoid();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
+  const today = await assertClockNotTampered();
   if (await isDayClosed(today)) {
     throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
   }
@@ -153,10 +154,10 @@ export async function completeSale(data: {
     if (payment.amount <= 0) continue;
     const paymentId = nanoid();
     const acct = accountMap.get(payment.accountId);
-    // fee_percent is stored per-mille (بالألف) in schema: e.g. 100 = 10%
-    // Divide by 10 to convert to standard percent before applyPercent
-    const feeAmount = applyPercent(payment.amount, (acct?.feePercent ?? 0) / 10);
-    const netAmount = payment.amount - feeAmount;
+    // C-2: fees are no longer tracked. Send fee_amount=0 and net_amount=amount.
+    // The RPC credits the GROSS to the account.
+    const feeAmount = 0;
+    const netAmount = payment.amount;
 
     paymentsPayload.push({
       id: paymentId,
@@ -300,22 +301,15 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
   const items = await dbClient.query(`SELECT * FROM invoice_items WHERE invoice_id = ?`, [invoiceId]);
   const stmts: { sql: string; params: any[] }[] = [];
   const now = new Date().toISOString();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // C-9: clock-tampering guard — the reversal ledger entry_date must not land
+  // on a rolled-back date.
+  const today = await assertClockNotTampered();
   const deviceId = getDeviceId();
 
   // ملاحظة: واجهة الاسترجاع الحالية تعمل بالمبالغ فقط (accountId, amount)
   // ولا تتتبع كميات البنود لكل استرجاع — استرجاع المخزون يُطبَّق فقط عند الاسترجاع الكامل (FIX 2)
 
-  // Pre-fetch fee_percent for refund accounts
-  const refundAccountIds = refunds.map(r => r.accountId);
-  const refundAccountMap = new Map<string, { name: string; feePercent: number }>();
-  if (refundAccountIds.length > 0) {
-    const accts = await dbClient.query(
-      `SELECT id, name, fee_percent FROM accounts WHERE id IN (${refundAccountIds.map(() => '?').join(',')})`,
-      refundAccountIds
-    );
-    accts.forEach((a: any) => refundAccountMap.set(a.id, { name: a.name, feePercent: a.fee_percent }));
-  }
+  // C-2: fee tracking removed, so refund accounts pre-fetch is no longer needed.
 
   const newPaidAmount = invoice.paid_amount - totalRefund;
   const newStatus = newPaidAmount === 0 ? 'returned' : 'partially_returned';
@@ -345,10 +339,9 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
 
   for (const refund of refunds) {
     if (refund.amount <= 0) continue;
-    const racct = refundAccountMap.get(refund.accountId);
-    // fee_percent is stored per-mille (بالألف): divide by 10 to get standard percent
-    const refundFee = applyPercent(refund.amount, (racct?.feePercent ?? 0) / 10);
-    const netRefund = refund.amount - refundFee;
+    // C-2: fees are no longer tracked. Refund the full amount.
+    const refundFee = 0;
+    const netRefund = refund.amount;
     stmts.push({
       sql: `INSERT INTO invoice_payments (id, invoice_id, account_id, amount, fee_amount, updated_at, device_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       params: [nanoid(), invoiceId, refund.accountId, -refund.amount, refundFee, now, deviceId],

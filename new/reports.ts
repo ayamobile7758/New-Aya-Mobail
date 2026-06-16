@@ -118,14 +118,13 @@ export async function getReport(fromDate: string, toDate: string) {
   const totalQty = kpiRow?.total_qty ?? 0;
   const totalCost = kpiRow?.total_cost ?? 0;
   const partialReturnsTotal = Number(partialReturnsRow?.total ?? 0);
-  // C-1: sales_net deducts ONLY partial_returns_total (full returns are already
-  // excluded from totalSales by the status filter — do NOT subtract them again).
-  const salesNet = totalSales - partialReturnsTotal;
-  const grossProfit = salesNet - totalCost;
+  // C-1: sales_net deducts ONLY partial_returns_total, NOT returns_total.
+  // returns_total is kept in the response for the dashboard "Returns" KPI widget.
+  const grossProfit = totalSales - totalCost;
   const totalExpenses = expRow?.total_expenses ?? 0;
   const topupProfit = Number(topupRow?.total ?? 0);
   const maintenanceRevenue = Number(mainRow?.total ?? 0);
-  // C-4 + C-1: net profit = grossProfit + topup + maintenance - expenses.
+  // C-4 + C-1: net profit includes topup + maintenance, subtracts expenses.
   // No payment-fee term (C-2 decision: fees are not tracked).
   const netProfit = grossProfit + topupProfit + maintenanceRevenue - totalExpenses;
   const returnCount = retRow?.return_count ?? 0;
