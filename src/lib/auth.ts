@@ -90,6 +90,12 @@ export async function writeSetting(key: string, value: any): Promise<void> {
 }
 
 export async function ensureDefaults() {
+  // Check if already seeded to prevent redundant setting reads/writes
+  const seeded = await get('defaults_seeded');
+  if (seeded === true) {
+    return;
+  }
+
   const daily = await readSetting('daily_lock');
   if (!daily) {
     const code = await hashCode("1234");
@@ -106,6 +112,14 @@ export async function ensureDefaults() {
   if (!maint) {
     const code = await hashCode("0000");
     await writeSetting('maintenance_pin', { enabled: false, ...code });
+  }
+
+  // Once all three are validated as existing/created, mark defaults_seeded
+  const checkDaily = daily || (await readSetting('daily_lock'));
+  const checkAdmin = admin || (await readSetting('admin_pin'));
+  const checkMaint = maint || (await readSetting('maintenance_pin'));
+  if (checkDaily && checkAdmin && checkMaint) {
+    await set('defaults_seeded', true);
   }
 }
 
@@ -163,6 +177,13 @@ export async function isDailyLockRequired(): Promise<boolean> {
 export async function markUnlocked() {
   await set('lastUnlockAt', new Date().toISOString());
   await set('pin_lockout_daily', null);
+  if (isSupabaseMode()) {
+    try {
+      await writeSetting('pin_lockout_daily', null);
+    } catch (err) {
+      console.warn('Failed to clear daily lockout setting:', err);
+    }
+  }
 }
 
 export async function changeDailyLock(newCode: string, currentAdminPin: string) {
@@ -231,9 +252,52 @@ function lockoutKey(level: 'daily' | 'admin'): string {
   return level === 'daily' ? 'pin_lockout_daily' : 'pin_lockout_admin';
 }
 
+export async function getCombinedLockout(level: 'daily' | 'admin'): Promise<{ attempts: number; lockedUntil: number } | null> {
+  const key = lockoutKey(level);
+  const localData = await get(key);
+  let cloudData = null;
+  if (isSupabaseMode()) {
+    try {
+      cloudData = await readSetting(key);
+    } catch (err) {
+      console.warn(`Failed to read central lockout ${key} on query, using cache:`, err);
+    }
+  }
+
+  if (!localData && !cloudData) return null;
+  const localAttempts = localData?.attempts ?? 0;
+  const localLockedUntil = localData?.lockedUntil ?? 0;
+  const cloudAttempts = cloudData?.attempts ?? 0;
+  const cloudLockedUntil = cloudData?.lockedUntil ?? 0;
+
+  const attempts = Math.max(localAttempts, cloudAttempts);
+  const lockedUntil = Math.max(localLockedUntil, cloudLockedUntil);
+
+  return { attempts, lockedUntil };
+}
+
 export async function recordFailedAttempt(level: 'daily' | 'admin') {
   const key = lockoutKey(level);
-  const lockData = await get(key) || { attempts: 0, lockedUntil: 0 };
+  
+  // Read both local and cloud
+  const localData = await get(key);
+  let cloudData = null;
+  if (isSupabaseMode()) {
+    try {
+      cloudData = await readSetting(key);
+    } catch (err) {
+      console.warn(`Failed to read central lockout ${key}:`, err);
+    }
+  }
+
+  const lockData = { attempts: 0, lockedUntil: 0 };
+  const localAttempts = localData?.attempts ?? 0;
+  const localLockedUntil = localData?.lockedUntil ?? 0;
+  const cloudAttempts = cloudData?.attempts ?? 0;
+  const cloudLockedUntil = cloudData?.lockedUntil ?? 0;
+
+  lockData.attempts = Math.max(localAttempts, cloudAttempts);
+  lockData.lockedUntil = Math.max(localLockedUntil, cloudLockedUntil);
 
   if (Date.now() < lockData.lockedUntil) return; // already locked
 
@@ -244,16 +308,81 @@ export async function recordFailedAttempt(level: 'daily' | 'admin') {
   }
 
   await set(key, lockData);
+  if (isSupabaseMode()) {
+    try {
+      await writeSetting(key, lockData);
+    } catch (err) {
+      console.warn(`Failed to write central lockout ${key}:`, err);
+    }
+  }
 }
 
 export async function isLocked(level: 'daily' | 'admin'): Promise<boolean> {
-  const lockData = await get(lockoutKey(level));
+  const lockData = await getCombinedLockout(level);
   if (!lockData) return false;
   return Date.now() < lockData.lockedUntil;
 }
 
 export async function getLockoutSecondsRemaining(level: 'daily' | 'admin'): Promise<number> {
-  const lockData = await get(lockoutKey(level));
+  const lockData = await getCombinedLockout(level);
   if (!lockData) return 0;
   return Math.max(0, Math.ceil((lockData.lockedUntil - Date.now()) / 1000));
+}
+
+export async function setAdminRecovery(question: string, answer: string, currentAdminPin: string): Promise<void> {
+  const storedAdmin = await readSetting('admin_pin');
+  if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
+    throw new Error('Admin PIN incorrect');
+  }
+
+  const normalized = answer.trim().toLowerCase();
+  const code = await hashCode(normalized);
+  await writeSetting('admin_recovery', { question, ...code });
+  await logAudit('تعيين_سؤال_استرجاع', 'تم تعيين سؤال استرجاع رمز المشرف');
+}
+
+export async function getAdminRecoveryQuestion(): Promise<string | null> {
+  const stored = await readSetting('admin_recovery');
+  return stored ? stored.question : null;
+}
+
+export async function hasAdminRecovery(): Promise<boolean> {
+  const stored = await readSetting('admin_recovery');
+  return !!stored;
+}
+
+export async function resetAdminPinViaRecovery(answer: string, newPin: string): Promise<void> {
+  if (await isLocked('admin')) {
+    const remaining = await getLockoutSecondsRemaining('admin');
+    throw new Error(`تم قفل إدخال الرمز مؤقتاً. حاول مجدداً بعد ${remaining} ثانية.`);
+  }
+
+  const stored = await readSetting('admin_recovery');
+  if (!stored) {
+    throw new Error('لم يتم تعيين سؤال الاسترجاع مسبقاً.');
+  }
+
+  const normalized = answer.trim().toLowerCase();
+  const isCorrect = await verifyCode(normalized, stored);
+  if (!isCorrect) {
+    await recordFailedAttempt('admin');
+    throw new Error('الإجابة غير صحيحة');
+  }
+
+  // On SUCCESS:
+  const codeData = await hashCode(newPin);
+  await writeSetting('admin_pin', codeData);
+  
+  // Clear the admin lockout
+  const key = lockoutKey('admin');
+  await set(key, null);
+  if (isSupabaseMode()) {
+    try {
+      await writeSetting(key, null);
+    } catch (err) {
+      console.warn('Failed to clear admin lockout setting:', err);
+    }
+  }
+  
+  await logAudit('استرجاع_رمز_مشرف', 'تم استرجاع رمز المشرف عن طريق سؤال الأمان');
 }

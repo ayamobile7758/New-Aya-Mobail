@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const idbStore = vi.hoisted(() => new Map<string, unknown>());
+const cloudStore = vi.hoisted(() => new Map<string, string>());
 
 vi.mock('idb-keyval', () => ({
   get: (key: string) => Promise.resolve(idbStore.get(key) ?? null),
@@ -11,6 +12,29 @@ vi.mock('idb-keyval', () => ({
   del: (key: string) => {
     idbStore.delete(key);
     return Promise.resolve();
+  },
+}));
+
+vi.mock('@/db/client', () => ({
+  isSupabaseMode: () => true,
+  dbClient: {
+    query: (sql: string, params: any[]) => {
+      if (sql.includes('SELECT value FROM app_settings')) {
+        const key = params[0];
+        const val = cloudStore.get(key);
+        if (val !== undefined) {
+          return Promise.resolve([{ value: val }]);
+        }
+        return Promise.resolve([]);
+      }
+      if (sql.includes('INSERT INTO app_settings')) {
+        const key = params[0];
+        const val = params[1];
+        cloudStore.set(key, val);
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    },
   },
 }));
 
@@ -53,6 +77,7 @@ describe('hashCode / verifyCode', () => {
 describe('lockout logic', () => {
   beforeEach(() => {
     idbStore.clear();
+    cloudStore.clear();
   });
 
   it('is not locked initially', async () => {
