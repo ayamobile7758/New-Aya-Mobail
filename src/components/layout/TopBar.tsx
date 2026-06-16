@@ -10,7 +10,7 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="hidden md:block text-text-secondary text-sm font-medium numeric">{today}</div>
+        <div className="text-text-secondary text-sm font-medium numeric">{today}</div>
       </div>
     </header>
   );
