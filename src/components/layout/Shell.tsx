@@ -5,7 +5,7 @@ import { RouteErrorFallback } from './RouteErrorFallback';
 import { TopBar } from './TopBar';
 import { SideRail } from './SideRail';
 import { BottomNav } from './BottomNav';
-import { AlertTriangle, X, Shield } from 'lucide-react';
+import { AlertTriangle, X, LogOut } from 'lucide-react';
 
 import { PWABadge } from '../pwa/PWABadge';
 import { PersistenceBanner } from './PersistenceBanner';
@@ -61,17 +61,24 @@ export function Shell() {
       <BottomNav className="md:hidden" />
       <PWABadge />
 
-      {/* ── Admin session indicator badge — visible on every route ── */}
+      {/* ── Admin session indicator — thin top line + small floating exit button ── */}
       {accessLevel === 'admin' && (
-        <button
-          dir="rtl"
-          onClick={exitAdmin}
-          className="fixed top-2 end-2 z-30 bg-[#CF694A] hover:bg-[#CF694A]/90 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer border-0 outline-none"
-          style={{ fontFamily: 'Tajawal, sans-serif' }}
-        >
-          <Shield className="w-3 h-3 shrink-0" />
-          <span>وضع المدير · خروج</span>
-        </button>
+        <>
+          {/* Thin visual-only indicator line across the very top of every screen */}
+          <div
+            aria-hidden="true"
+            className="fixed top-0 inset-x-0 z-[60] h-[3px] bg-accent shadow-[0_0_6px_rgba(207,105,74,0.5)] pointer-events-none"
+          />
+          {/* Small floating exit button — bottom-start (left in RTL), above any bottom nav */}
+          <button
+            onClick={exitAdmin}
+            aria-label="خروج من وضع المدير"
+            title="خروج من وضع المدير"
+            className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] start-3 z-[60] w-10 h-10 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg flex items-center justify-center transition-colors border-0 outline-none"
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+          </button>
+        </>
       )}
     </div>
   );
