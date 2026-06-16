@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney } from '@/lib/money';
-import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift, Receipt } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useEscKey } from '@/hooks/useEscKey';
 import { useAuth } from '@/contexts/AuthContext';
-import { AddExpenseDialog } from './AddExpenseDialog';
+import { SavedCartsTabs } from './SavedCartsTabs';
 
 // ─── ActionType ────────────────────────────────────────────────────────────────
 type ActionType = 'qty' | 'price';
@@ -310,7 +310,6 @@ export function CartSidebar() {
   const [showGlobalDiscountDialog, setShowGlobalDiscountDialog] = useState(false);
   const [pendingGlobalAmt, setPendingGlobalAmt] = useState<number | null>(null);
   const [showConflictConfirm, setShowConflictConfirm] = useState(false);
-  const [showAddExpense, setShowAddExpense] = useState(false);
 
   useEffect(() => {
     if (pulseTrigger > 0) {
@@ -372,20 +371,11 @@ export function CartSidebar() {
       <div className="w-full h-full bg-surface border-s border-border flex flex-col overflow-hidden">
 
         {/* ── Cart header ── */}
-        <div className={cn('px-3 py-2 border-b border-border flex items-center justify-between shrink-0 transition-all', pulse && 'bg-accent/10')}>
-          <h2 className="font-bold flex items-center gap-1.5" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '14px' }}>
-            السلة <span className="bg-accent text-white text-xs px-1.5 py-0.5 rounded-full">{items.length}</span>
-          </h2>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setShowAddExpense(true)}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-text-secondary hover:text-accent hover:bg-accent/10 border border-border rounded-lg transition-colors"
-              style={{ touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif' }}
-              title="إضافة مصروف"
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>إضافة مصروف</span>
-            </button>
+        <div className="shrink-0 flex flex-col bg-background">
+          <div className={cn('px-3 py-2 border-b border-border flex items-center justify-between transition-all', pulse && 'bg-accent/10')}>
+            <h2 className="font-bold flex items-center gap-1.5" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '14px' }}>
+              السلة <span className="bg-accent text-white text-xs px-1.5 py-0.5 rounded-full">{items.length}</span>
+            </h2>
             {items.length > 0 && (
               <button
                 onClick={() => setConfirmClear(true)}
@@ -397,6 +387,7 @@ export function CartSidebar() {
               </button>
             )}
           </div>
+          <SavedCartsTabs />
         </div>
 
         {/* ── Items list ── */}
@@ -734,11 +725,6 @@ export function CartSidebar() {
         danger
         onConfirm={() => { clearCart(); setConfirmClear(false); }}
         onCancel={() => setConfirmClear(false)}
-      />
-
-      <AddExpenseDialog
-        isOpen={showAddExpense}
-        onClose={() => setShowAddExpense(false)}
       />
     </>
   );

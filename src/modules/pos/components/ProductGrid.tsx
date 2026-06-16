@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, PackageSearch, LayoutGrid } from 'lucide-react';
+import { Search, PackageSearch, LayoutGrid, Shield, Lock, Wrench, Receipt } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getActiveProducts, Product } from '@/db/queries/products';
@@ -12,6 +12,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { loadProductImage } from '@/lib/imageStorage';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getProductIcon } from '@/lib/iconMap';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MIN_CARD_PX = 56;
 const GAP = 10;
@@ -31,7 +32,14 @@ function getCardHeight(level: SizeLevel): number {
   return 80;
 }
 
-export function ProductGrid() {
+interface ProductGridProps {
+  onAddExpense: () => void;
+  onShowMaint: () => void;
+  maintEnabled: boolean;
+}
+
+export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: ProductGridProps) {
+  const { requireAdminAction, lockNow } = useAuth();
   const [search, setSearch]     = useState('');
   const debouncedSearch          = useDebounce(search, 150);
   const [category, setCategory] = useState('all');
@@ -104,9 +112,10 @@ export function ProductGrid() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* ── Header: search + density ── */}
-      <div className="p-4 bg-background shrink-0">
-        <div className="flex gap-2 mb-4">
+      {/* ── Header: search + compact buttons ── */}
+      <div className="p-4 bg-background shrink-0 border-b border-border">
+        <div className="flex items-center gap-2 mb-4" dir="rtl">
+          {/* Search Input (starts on the right/stretches) */}
           <div className="relative flex-1">
             <input
               type="text"
@@ -114,59 +123,109 @@ export function ProductGrid() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               aria-label="البحث في المنتجات"
-              className="w-full h-[var(--input-height)] ps-10 pe-4 rounded-lg border border-border bg-surface focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+              className="w-full h-11 ps-10 pe-4 rounded-lg border border-border bg-surface focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
             />
             <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" aria-hidden="true" />
           </div>
 
-          {/* Density popover */}
-          <div ref={densityRef} className="relative shrink-0">
+          {/* Compact group of icon-only buttons (to its left, so in RTL they appear to the left of search) */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Admin */}
             <button
-              onClick={() => setShowDensity(v => !v)}
-              aria-label="ضبط كثافة الشبكة"
-              aria-expanded={showDensity}
-              style={{ touchAction: 'manipulation', userSelect: 'none', minWidth: 44, minHeight: 44 }}
-              className={cn(
-                "h-[var(--input-height)] min-w-[44px] px-3 flex items-center justify-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                showDensity
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-border bg-surface text-text-secondary hover:border-accent hover:text-accent"
-              )}
+              onClick={() => requireAdminAction(() => navigate('/dashboard'))}
+              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
+              title="دخول المدير"
+              aria-label="دخول المدير"
+              style={{ touchAction: 'manipulation' }}
             >
-              <LayoutGrid className="w-5 h-5" />
+              <Shield className="w-5 h-5" />
             </button>
 
-            {showDensity && (
-              <div
-                className="absolute top-full mt-2 end-0 z-50 bg-surface border border-border rounded-xl shadow-lg p-4 w-64"
-                style={{ fontFamily: 'Tajawal, sans-serif' }}
+            {/* Lock */}
+            <button
+              onClick={() => lockNow()}
+              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-red-500 hover:border-red-400 transition-colors shadow-sm"
+              title="قفل النظام"
+              aria-label="قفل النظام"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Lock className="w-5 h-5" />
+            </button>
+
+            {/* Maintenance */}
+            {maintEnabled && (
+              <button
+                onClick={onShowMaint}
+                className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
+                title="وضع الصيانة"
+                aria-label="وضع الصيانة"
+                style={{ touchAction: 'manipulation' }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-bold text-text-primary">عدد المنتجات في الصف</span>
-                  <span
-                    className="text-2xl font-bold text-accent"
-                    style={{ fontFamily: 'Inter, sans-serif', minWidth: 32, textAlign: 'center' }}
-                  >
-                    {posGridColumns}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={3}
-                  max={15}
-                  step={1}
-                  value={posGridColumns}
-                  onChange={e => setPosGridColumns(Number(e.target.value))}
-                  style={{ touchAction: 'manipulation', accentColor: '#CF694A', minHeight: 44 }}
-                  className="w-full cursor-pointer"
-                  aria-label="عدد المنتجات في الصف"
-                />
-                <div className="flex justify-between mt-1 text-xs text-text-secondary" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  <span>3</span>
-                  <span>15</span>
-                </div>
-              </div>
+                <Wrench className="w-5 h-5" />
+              </button>
             )}
+
+            {/* Add Expense */}
+            <button
+              onClick={onAddExpense}
+              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
+              title="إضافة مصروف"
+              aria-label="إضافة مصروف"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Receipt className="w-5 h-5" />
+            </button>
+
+            {/* Density popover */}
+            <div ref={densityRef} className="relative">
+              <button
+                onClick={() => setShowDensity(v => !v)}
+                aria-label="ضبط كثافة الشبكة"
+                aria-expanded={showDensity}
+                title="ضبط كثافة الشبكة"
+                style={{ touchAction: 'manipulation', userSelect: 'none' }}
+                className={cn(
+                  "w-11 h-11 flex items-center justify-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  showDensity
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border bg-surface text-text-secondary hover:border-accent hover:text-accent"
+                )}
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
+
+              {showDensity && (
+                <div
+                  className="absolute top-full mt-2 end-0 z-50 bg-surface border border-border rounded-xl shadow-lg p-4 w-64 text-text-primary"
+                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-bold text-text-primary">عدد المنتجات في الصف</span>
+                    <span
+                      className="text-2xl font-bold text-accent"
+                      style={{ fontFamily: 'Inter, sans-serif', minWidth: 32, textAlign: 'center' }}
+                    >
+                      {posGridColumns}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={3}
+                    max={15}
+                    step={1}
+                    value={posGridColumns}
+                    onChange={e => setPosGridColumns(Number(e.target.value))}
+                    style={{ touchAction: 'manipulation', accentColor: '#CF694A', minHeight: 44 }}
+                    className="w-full cursor-pointer"
+                    aria-label="عدد المنتجات في الصف"
+                  />
+                  <div className="flex justify-between mt-1 text-xs text-text-secondary" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <span>3</span>
+                    <span>15</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
