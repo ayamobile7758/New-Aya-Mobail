@@ -5,11 +5,13 @@ import { RouteErrorFallback } from './RouteErrorFallback';
 import { TopBar } from './TopBar';
 import { SideRail } from './SideRail';
 import { BottomNav } from './BottomNav';
-import { AlertTriangle, X, LogOut } from 'lucide-react';
+import { AlertTriangle, X, LogOut, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { PWABadge } from '../pwa/PWABadge';
 import { PersistenceBanner } from './PersistenceBanner';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 export function Shell() {
   const location = useLocation();
@@ -30,6 +32,27 @@ export function Shell() {
   };
 
   const { accessLevel, exitAdmin } = useAuth();
+
+  // Periodic admin-mode reminder: every 15 minutes while in admin mode, briefly
+  // emphasize the top line and show a toast so the manager doesn't forget the
+  // device is unlocked with full privileges. The interval is cleaned up on exit.
+  const [adminPulse, setAdminPulse] = useState(false);
+  useEffect(() => {
+    if (accessLevel !== 'admin') {
+      setAdminPulse(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setAdminPulse(true);
+      toast('وضع المدير لا يزال مفعّلاً', {
+        icon: <Shield className="w-4 h-4" />,
+        description: 'اضغط زر الخروج إذا انتهيت من إجراءات الإدارة.',
+        duration: 5000,
+      });
+      setTimeout(() => setAdminPulse(false), 4000);
+    }, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [accessLevel]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background w-full max-w-[100vw] text-text-primary">
@@ -67,7 +90,12 @@ export function Shell() {
           {/* Thin visual-only indicator line across the very top of every screen */}
           <div
             aria-hidden="true"
-            className="admin-mode-line fixed top-0 inset-x-0 z-[60] h-[3px] shadow-[0_0_6px_rgba(207,105,74,0.5)] pointer-events-none"
+            className={cn(
+              'admin-mode-line fixed top-0 inset-x-0 z-[60] pointer-events-none transition-all duration-500',
+              adminPulse
+                ? 'h-[6px] shadow-[0_0_14px_rgba(207,105,74,0.9)]'
+                : 'h-[3px] shadow-[0_0_6px_rgba(207,105,74,0.5)]'
+            )}
           />
           {/* Small floating exit button — bottom-start (left in RTL), above any bottom nav */}
           <button
