@@ -39,7 +39,7 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: ProductGridProps) {
-  const { requireAdminAction, lockNow } = useAuth();
+  const { requireAdminAction, lockNow, accessLevel } = useAuth();
   const [search, setSearch]     = useState('');
   const debouncedSearch          = useDebounce(search, 150);
   const [category, setCategory] = useState('all');
@@ -115,7 +115,32 @@ export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: Product
       {/* ── Header: search + compact buttons ── */}
       <div className="p-4 bg-background shrink-0 border-b border-border">
         <div className="flex items-center gap-2 mb-4" dir="rtl">
-          {/* Search Input (starts on the right/stretches) */}
+          {/* Right side: Lock + Add Expense (rendered first in RTL -> shows on the right) */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Lock */}
+            <button
+              onClick={() => lockNow()}
+              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-red-500 hover:border-red-400 transition-colors shadow-sm"
+              title="قفل النظام"
+              aria-label="قفل النظام"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Lock className="w-5 h-5" />
+            </button>
+
+            {/* Add Expense */}
+            <button
+              onClick={onAddExpense}
+              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
+              title="إضافة مصروف"
+              aria-label="إضافة مصروف"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Receipt className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Middle: Search Input (stretched) */}
           <div className="relative flex-1">
             <input
               type="text"
@@ -128,28 +153,25 @@ export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: Product
             <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" aria-hidden="true" />
           </div>
 
-          {/* Compact group of icon-only buttons (to its left, so in RTL they appear to the left of search) */}
+          {/* Left side: Admin, Maintenance, Density (rendered last in RTL -> shows on the left) */}
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Admin */}
             <button
-              onClick={() => requireAdminAction(() => navigate('/dashboard'))}
+              onClick={() => {
+                if (accessLevel === 'admin') {
+                  navigate('/dashboard');
+                } else {
+                  requireAdminAction(() => {
+                    setTimeout(() => navigate('/dashboard'), 0);
+                  });
+                }
+              }}
               className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
               title="دخول المدير"
               aria-label="دخول المدير"
               style={{ touchAction: 'manipulation' }}
             >
               <Shield className="w-5 h-5" />
-            </button>
-
-            {/* Lock */}
-            <button
-              onClick={() => lockNow()}
-              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-red-500 hover:border-red-400 transition-colors shadow-sm"
-              title="قفل النظام"
-              aria-label="قفل النظام"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Lock className="w-5 h-5" />
             </button>
 
             {/* Maintenance */}
@@ -164,17 +186,6 @@ export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: Product
                 <Wrench className="w-5 h-5" />
               </button>
             )}
-
-            {/* Add Expense */}
-            <button
-              onClick={onAddExpense}
-              className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
-              title="إضافة مصروف"
-              aria-label="إضافة مصروف"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Receipt className="w-5 h-5" />
-            </button>
 
             {/* Density popover */}
             <div ref={densityRef} className="relative">

@@ -620,7 +620,7 @@ export function CartSidebar() {
                 key={action}
                 disabled={!selectedItemId}
                 onClick={() => setActiveAction(action)}
-                style={{ height: '44px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
+                style={{ height: '38px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
                 className={cn(
                   'rounded-lg border flex items-center justify-center gap-1 transition-colors',
                   selectedItemId

@@ -101,6 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const exitAdmin = async () => {
     const required = await isDailyLockRequired();
     setAccessLevel(required ? 'locked' : 'pos');
+    if (window.location.pathname !== '/pos') {
+      window.history.pushState(null, '', '/pos');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   };
 
   const lockNow = async () => {
