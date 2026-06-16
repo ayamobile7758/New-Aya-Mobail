@@ -6,7 +6,7 @@ import { getJobs } from '@/db/queries/maintenance';
 import { getRecentInvoices } from '@/db/queries/sales';
 import { getReport } from '@/db/queries/reports';
 import { formatMoney } from '@/lib/money';
-import { Wallet, TrendingUp, HandCoins, Package, Wrench, Receipt, AlertTriangle, CheckCircle, Banknote, CreditCard, Building2, Smartphone } from 'lucide-react';
+import { Wallet, TrendingUp, HandCoins, Package, Wrench, Receipt, AlertTriangle, CheckCircle, Banknote, CreditCard, Building2, Smartphone, LayoutDashboard } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { format, parseISO, startOfWeek, startOfMonth } from 'date-fns';
@@ -95,25 +95,35 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-y-auto">
-      <div className="max-w-6xl mx-auto p-4 md:p-6 w-full space-y-6 md:space-y-8">
-        
-        <header className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">مرحباً بك في لوحة القيادة</h1>
-            <p className="text-text-secondary">نظرة عامة على نشاط متجرك اليوم</p>
-          </div>
-          
-          <div className="bg-surface border border-border p-4 rounded-2xl flex items-center gap-4 min-w-[250px]">
-            <div className="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-              <Wallet className="w-6 h-6" />
+    <div className="flex flex-col h-full bg-background relative isolate">
+      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
+        <div className="max-w-6xl mx-auto space-y-4">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+                <LayoutDashboard className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">مرحباً بك في لوحة القيادة</h1>
+                <p className="text-sm text-text-secondary">نظرة عامة على نشاط متجرك اليوم</p>
+              </div>
             </div>
-            <div>
-              <div className="text-sm text-text-secondary">إجمالي الأرصدة</div>
-              <div className="text-2xl font-bold numeric">{formatMoney(totalLiquidity)}</div>
+            
+            <div className="bg-surface border border-border p-4 rounded-2xl flex items-center gap-4 w-full sm:w-auto sm:min-w-[250px] shrink-0">
+              <div className="w-11 h-11 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-sm text-text-secondary">إجمالي الأرصدة</div>
+                <div className="text-2xl font-bold numeric">{formatMoney(totalLiquidity)}</div>
+              </div>
             </div>
           </div>
-        </header>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto p-4 content-area">
+        <div className="max-w-6xl mx-auto space-y-6 w-full">
 
         {/* Start POS Big Action */}
         <section className="bg-gradient-to-r from-accent to-accent/80 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
@@ -138,7 +148,7 @@ export default function DashboardPage() {
           </h2>
           <div className="bg-surface border border-border rounded-2xl p-6">
             <div className="text-4xl font-bold numeric text-accent mb-6">{formatMoney(totalLiquidity)}</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {liquidityByType.map(({ type, label, icon, total }) => (
                 <div key={type} className="bg-background border border-border rounded-xl p-4 flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-text-secondary text-sm">
@@ -193,7 +203,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <TrendingUp className="w-6 h-6 text-accent" /> ملخص اليوم
             </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-surface border border-border p-5 rounded-2xl">
                 <div className="text-text-secondary text-sm mb-2">المبيعات</div>
                 <div className="text-2xl font-bold numeric text-accent">{formatMoney(summary.sales)}</div>
@@ -222,7 +232,7 @@ export default function DashboardPage() {
                 <Link to="/sales" className="text-accent text-sm font-medium hover:underline">عرض الكل</Link>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-start">
+                <table className="w-full text-sm text-start min-w-[640px]">
                   <thead className="bg-muted text-text-secondary font-medium">
                     <tr>
                       <th className="px-4 py-3">رقم الفاتورة</th>
@@ -252,7 +262,7 @@ export default function DashboardPage() {
             
             <section>
               <h2 className="text-lg font-bold mb-4">روابط سريعة</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {QUICK_LINKS.map(link => (
                   <Link 
                     key={link.path} 
@@ -334,7 +344,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

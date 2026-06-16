@@ -138,17 +138,17 @@ export default function SalesPage() {
     <div className="flex flex-col h-full bg-background relative isolate">
 
       {/* ── Header + Filter bar ── */}
-      <header className="bg-surface border-b border-border p-4 shrink-0">
+      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-3">
 
           {/* Title */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">فواتير المبيعات</h1>
-              <p className="text-xs text-text-secondary">إدارة المبيعات السابقة واسترجاع الفواتير</p>
+              <h1 className="text-xl md:text-2xl font-bold">فواتير المبيعات</h1>
+              <p className="text-sm text-text-secondary">إدارة المبيعات السابقة واسترجاع الفواتير</p>
             </div>
           </div>
 
@@ -179,7 +179,7 @@ export default function SalesPage() {
               type="date"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className="h-9 px-2 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none"
+              className="h-11 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none w-full"
               title="من تاريخ"
               dir="ltr"
             />
@@ -187,7 +187,7 @@ export default function SalesPage() {
               type="date"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className="h-9 px-2 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none"
+              className="h-11 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none w-full"
               title="إلى تاريخ"
               dir="ltr"
             />
@@ -197,7 +197,7 @@ export default function SalesPage() {
                 placeholder="الحد الأدنى..."
                 value={minAmountStr}
                 onChange={e => setMinAmountStr(e.target.value)}
-                className="w-full h-9 ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
+                className="w-full h-11 ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
                 min="0"
               />
               <span className="absolute end-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">د.أ</span>
@@ -208,7 +208,7 @@ export default function SalesPage() {
                 placeholder="الحد الأعلى..."
                 value={maxAmountStr}
                 onChange={e => setMaxAmountStr(e.target.value)}
-                className="w-full h-9 ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
+                className="w-full h-11 ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
                 min="0"
               />
               <span className="absolute end-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">د.أ</span>
@@ -220,7 +220,7 @@ export default function SalesPage() {
             <select
               value={filterAccountId}
               onChange={e => setFilterAccountId(e.target.value)}
-              className="flex-1 h-9 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none"
+              className="flex-1 h-11 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none"
             >
               <option value="">جميع وسائل الدفع</option>
               {accounts.map((acc: any) => (
@@ -230,7 +230,7 @@ export default function SalesPage() {
             {hasFilters && (
               <button
                 onClick={resetFilters}
-                className="h-9 px-3 text-sm bg-muted hover:bg-muted/80 rounded-xl font-medium flex items-center gap-1.5 text-text-secondary whitespace-nowrap border border-border transition-colors"
+                className="h-11 px-3 text-sm bg-muted hover:bg-muted/80 rounded-xl font-medium flex items-center gap-1.5 text-text-secondary whitespace-nowrap border border-border transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 إعادة ضبط
@@ -303,7 +303,7 @@ export default function SalesPage() {
       {detailId && (
         <div className="fixed inset-0 z-40">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDetailId(null)} />
-          <div className="absolute inset-y-0 start-0 w-full max-w-md bg-surface shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+          <div className="absolute inset-y-0 start-0 w-[calc(100%-2rem)] max-w-md bg-surface shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
 
             {/* Panel header */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -456,7 +456,7 @@ export default function SalesPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="return-dialog-title"
-            className="bg-surface rounded-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] shadow-xl"
+            className="bg-surface rounded-2xl w-[calc(100%-2rem)] max-w-md overflow-hidden flex flex-col max-h-[90vh] shadow-xl"
           >
             <div className="flex justify-between items-center p-4 border-b border-border">
               <h2 id="return-dialog-title" className="text-xl font-bold">استرجاع فاتورة</h2>

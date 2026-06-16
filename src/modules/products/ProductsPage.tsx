@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAllProducts, Product } from '@/db/queries/products';
 import { getCategories } from '@/db/queries/categories';
-import { Plus, Search, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, AlertTriangle, CheckCircle, XCircle, Package } from 'lucide-react';
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { ProductEditor } from './components/ProductEditor';
@@ -44,13 +44,21 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       {/* Header */}
-      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10">
+      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">إدارة الأصناف والمستودع</h1>
+          <div className="flex justify-between items-start md:items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">إدارة الأصناف والمستودع</h1>
+                <p className="text-sm text-text-secondary">إدارة المنتجات، الأصناف، والأسعار</p>
+              </div>
+            </div>
             <button 
               onClick={handleCreate}
-              className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm"
+              className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm shrink-0"
             >
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">إضافة صنف</span>

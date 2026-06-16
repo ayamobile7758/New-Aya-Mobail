@@ -75,7 +75,7 @@ export function ExpenseCategoriesDialog({ isOpen, onClose }: ExpenseCategoriesDi
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="exp-cat-dialog-title" className="bg-surface rounded-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+      <div ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="exp-cat-dialog-title" className="bg-surface rounded-2xl w-[calc(100%-2rem)] max-w-md overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-4 border-b border-border">
           <h2 id="exp-cat-dialog-title" className="text-xl font-bold">إدارة فئات المصروفات</h2>
           <button onClick={onClose} className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-full" aria-label="إغلاق">

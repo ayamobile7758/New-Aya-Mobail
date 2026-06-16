@@ -83,7 +83,7 @@ export function TransferDialog({ isOpen, onClose }: { isOpen: boolean; onClose: 
       className="fixed inset-0 z-[40] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-background rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-background rounded-2xl w-[calc(100%-2rem)] max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-4 border-b border-border bg-surface shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <ArrowRightLeft className="w-5 h-5 text-accent" />

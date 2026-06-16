@@ -111,13 +111,19 @@ export default function MaintenancePage() {
     <div className="flex flex-col h-full bg-background relative isolate">
       <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Wrench className="w-6 h-6 text-accent" /> صيانة الأجهزة
-            </h1>
+          <div className="flex justify-between items-start md:items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+                <Wrench className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">صيانة الأجهزة</h1>
+                <p className="text-sm text-text-secondary">متابعة وإصلاح أجهزة العملاء</p>
+              </div>
+            </div>
             <button 
               onClick={() => setIsAddMode(true)}
-              className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm"
+              className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm shrink-0"
             >
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">استلام جهاز جديد</span>
@@ -250,7 +256,7 @@ export default function MaintenancePage() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
             onClick={(e) => { if (e.target === e.currentTarget) setDeliveryJobId(null); }}
           >
-            <div ref={deliveryTrapRef} role="dialog" aria-modal="true" aria-labelledby="delivery-dialog-title" className="bg-surface w-full max-w-sm rounded-2xl shadow-xl flex flex-col overflow-hidden">
+            <div ref={deliveryTrapRef} role="dialog" aria-modal="true" aria-labelledby="delivery-dialog-title" className="bg-surface w-[calc(100%-2rem)] max-w-sm rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center p-4 border-b border-border bg-muted/30">
                     <h2 id="delivery-dialog-title" className="text-xl font-bold">تسليم الجهاز</h2>
                     <button onClick={() => setDeliveryJobId(null)} className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-full text-text-secondary hover:text-text-primary" aria-label="إغلاق">
@@ -304,7 +310,7 @@ export default function MaintenancePage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setIsAddMode(false); }}
         >
-          <div ref={addJobTrapRef} role="dialog" aria-modal="true" aria-labelledby="add-job-title" className="bg-surface w-full max-w-lg rounded-2xl p-6 shadow-xl flex flex-col max-h-[90vh]">
+          <div ref={addJobTrapRef} role="dialog" aria-modal="true" aria-labelledby="add-job-title" className="bg-surface w-[calc(100%-2rem)] max-w-lg rounded-2xl p-6 shadow-xl flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center mb-6 shrink-0">
               <h2 id="add-job-title" className="text-xl font-bold">استلام جهاز جديد للصيانة</h2>
               <button onClick={() => setIsAddMode(false)} className="w-11 h-11 flex items-center justify-center hover:bg-muted rounded-full" aria-label="إغلاق">

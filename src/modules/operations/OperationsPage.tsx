@@ -140,9 +140,14 @@ export default function OperationsPage() {
       <header className="bg-surface border-b border-border px-4 pt-4 sticky top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <div>
-              <h1 className="text-2xl font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>الحركة المالية والسجل</h1>
-              <p className="text-sm text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>متابعة كافة حركات الصناديق والمصروفات والمبيعات</p>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+                <ArrowRightLeft className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>الحركة المالية والسجل</h1>
+                <p className="text-sm text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>متابعة كافة حركات الصناديق والمصروفات والمبيعات</p>
+              </div>
             </div>
             {activeTab === 'ledger' && (
               <div className="flex items-center gap-2">
@@ -162,12 +167,12 @@ export default function OperationsPage() {
                   <ArrowRightLeft className="w-4 h-4 text-accent" />
                   تحويل
                 </button>
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-xl">
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-xl h-11">
                   <input
                     type="date"
                     value={date}
                     onChange={e => setDate(e.target.value)}
-                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer"
+                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer h-full"
                     dir="ltr"
                   />
                 </div>
@@ -237,19 +242,19 @@ export default function OperationsPage() {
 
               {/* ── Ledger filter + export row ── */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-xl">
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-xl h-11">
                   <input type="date" value={ledgerFrom} dir="ltr"
                     onChange={e => setLedgerFrom(e.target.value)}
-                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer" />
+                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer h-full" />
                   <span className="text-text-secondary text-xs">←</span>
                   <input type="date" value={ledgerTo} dir="ltr"
                     onChange={e => setLedgerTo(e.target.value)}
-                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer" />
+                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer h-full" />
                 </div>
                 <button
                   onClick={exportCSV}
                   disabled={isLoading}
-                  className="h-9 px-3 bg-surface border border-border text-sm font-medium rounded-xl hover:border-accent transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  className="h-11 px-3 bg-surface border border-border text-sm font-medium rounded-xl hover:border-accent transition-colors flex items-center gap-1.5 disabled:opacity-50"
                   style={{ fontFamily: 'Tajawal, sans-serif' }}
                 >
                   <Download className="w-4 h-4 text-accent" />
@@ -258,7 +263,7 @@ export default function OperationsPage() {
                 <button
                   onClick={exportXLSX}
                   disabled={isLoading}
-                  className="h-9 px-3 bg-success text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                  className="h-11 px-3 bg-success text-white text-sm font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
                   style={{ fontFamily: 'Tajawal, sans-serif' }}
                 >
                   <FileSpreadsheet className="w-4 h-4" />
@@ -427,7 +432,7 @@ export default function OperationsPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[640px]">
                     <thead className="bg-muted text-text-secondary">
                       <tr>
                         <th className="px-4 py-3 text-start" style={{ fontFamily: 'Tajawal, sans-serif' }}>التاريخ</th>

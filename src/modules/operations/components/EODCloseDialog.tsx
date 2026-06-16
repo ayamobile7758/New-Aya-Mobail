@@ -83,7 +83,7 @@ export function EODCloseDialog({ isOpen, onClose, targetDate }: Props) {
       dir="rtl"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-surface w-full max-w-lg rounded-[24px] shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-surface w-[calc(100%-2rem)] max-w-lg rounded-[24px] shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">

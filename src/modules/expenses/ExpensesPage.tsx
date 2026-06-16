@@ -153,16 +153,21 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <header className="bg-surface border-b border-border p-4 shrink-0">
+    <div className="flex flex-col h-full bg-background relative isolate">
+      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-bold">المصروفات</h1>
-            <p className="text-sm text-text-secondary">تسجيل مصاريف المحل اليومية</p>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+              <Receipt className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">المصروفات</h1>
+              <p className="text-sm text-text-secondary">تسجيل مصاريف المحل اليومية</p>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 w-full md:w-auto">
-            <div className="flex items-center gap-2 w-full sm:w-auto bg-muted p-1 px-3 rounded-xl border border-border">
+            <div className="flex items-center gap-2 w-full sm:w-auto bg-muted p-1 px-3 rounded-xl border border-border h-11">
               <Calendar className="w-4 h-4 text-text-secondary" />
               <input 
                 type="date" 
@@ -397,7 +402,7 @@ export default function ExpensesPage() {
           dir="rtl"
           onClick={(e) => { if (e.target === e.currentTarget) setEditingId(null); }}
         >
-          <div className="bg-surface w-full max-w-md rounded-[24px] p-6 shadow-xl relative animate-in zoom-in-95 flex flex-col text-text-primary">
+          <div className="bg-surface w-[calc(100%-2rem)] max-w-md rounded-[24px] p-6 shadow-xl relative animate-in zoom-in-95 flex flex-col max-h-[90vh] overflow-y-auto text-text-primary">
             <button
               onClick={() => setEditingId(null)}
               className="absolute top-4 end-4 p-2 text-text-secondary hover:bg-muted rounded-full transition-colors outline-none"
