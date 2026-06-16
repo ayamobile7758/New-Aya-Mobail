@@ -62,8 +62,8 @@ export async function addJob(data: {
   // Get sequence — atomic: ON CONFLICT increments and returns new value
   const seqRow = await dbClient.query(
     `INSERT INTO sequences (name, last_val) VALUES (?, 1)
-     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
-     RETURNING last_val`,
+     ON CONFLICT(name) DO UPDATE SET last_val = sequences.last_val + 1
+     RETURNING sequences.last_val`,
     ['maintenance']
   );
   const nextVal = seqRow[0].last_val;

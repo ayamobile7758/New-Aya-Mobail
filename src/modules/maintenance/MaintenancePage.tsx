@@ -73,6 +73,9 @@ export default function MaintenancePage() {
         customer_name: '', customer_phone: '', device_type: '', 
         issue_description: '', estimated_cost: '', notes: ''
       });
+    },
+    onError: (err: any) => {
+      toast.error('حدث خطأ أثناء استلام الجهاز: ' + err.message);
     }
   });
 

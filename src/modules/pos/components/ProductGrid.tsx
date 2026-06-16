@@ -138,6 +138,19 @@ export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: Product
             >
               <Receipt className="w-5 h-5" />
             </button>
+
+            {/* Maintenance */}
+            {maintEnabled && (
+              <button
+                onClick={onShowMaint}
+                className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
+                title="الصيانة"
+                aria-label="الصيانة"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Wrench className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {/* Middle: Search Input (stretched) */}
@@ -173,19 +186,6 @@ export function ProductGrid({ onAddExpense, onShowMaint, maintEnabled }: Product
             >
               <Shield className="w-5 h-5" />
             </button>
-
-            {/* Maintenance */}
-            {maintEnabled && (
-              <button
-                onClick={onShowMaint}
-                className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
-                title="وضع الصيانة"
-                aria-label="وضع الصيانة"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Wrench className="w-5 h-5" />
-              </button>
-            )}
 
             {/* Density popover */}
             <div ref={densityRef} className="relative">

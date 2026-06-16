@@ -71,8 +71,8 @@ export async function completeSale(data: {
   // 1. Get next invoice number — atomic: ON CONFLICT increments and returns new value
   const seqRow = await dbClient.query(
     `INSERT INTO sequences (name, last_val) VALUES (?, 1)
-     ON CONFLICT(name) DO UPDATE SET last_val = last_val + 1
-     RETURNING last_val`,
+     ON CONFLICT(name) DO UPDATE SET last_val = sequences.last_val + 1
+     RETURNING sequences.last_val`,
     ['invoice']
   );
   const nextVal = seqRow[0].last_val;
