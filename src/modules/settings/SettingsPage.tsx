@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy, Wrench } from 'lucide-react';
+import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy, Wrench, ShoppingCart, Smartphone, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportDb, importDb } from '@/lib/backup';
 import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin, setAdminRecovery, getAdminRecoveryQuestion } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useUIStore } from '@/stores/ui.store';
 import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audit';
 import { getDeviceId, getDeviceName, setDeviceName } from '@/lib/device';
 import { getCategories, addCategory, updateCategory, deleteCategory, Category, getDeletedCategories, restoreCategory } from '@/db/queries/categories';
@@ -80,6 +81,7 @@ const EMPTY_CAT_FORM: CategoryForm = { name: '', color: '#CF694A', icon: 'Box', 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit' | 'categories' | 'trash'>('general');
   const { settings, updateSettings } = useSettingsStore();
+  const { cartVisibility, setCartVisibility } = useUIStore();
   const qc = useQueryClient();
 
   // General Settings
@@ -758,6 +760,56 @@ export default function SettingsPage() {
                   >
                     حفظ إعدادات الطباعة
                   </button>
+                </div>
+
+                {/* ── Cart visibility control ── */}
+                <div className="max-w-md mt-8 pt-6 border-t border-border space-y-3">
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5 text-accent" /> سلة المشتريات في شاشة البيع
+                  </h3>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    اختر كيف تبدأ السلة عند فتح شاشة البيع. في الحالتين يمكنك دائماً إظهار السلة أو إخفاؤها بضغطة من شاشة البيع. يُحفظ هذا الإعداد على هذا الجهاز ويُطبّق فوراً.
+                  </p>
+
+                  <div className="space-y-2">
+                    {([
+                      { value: 'always' as const, label: 'ظاهرة دائماً', desc: 'تبدأ السلة ظاهرة كشريط جانبي على التابلت واللابتوب (وعلى الهاتف تُفتح بضغطة).', Icon: Monitor },
+                      { value: 'hidden' as const, label: 'مخفية حتى أطلبها', desc: 'تبدأ السلة مغلقة لترى المنتجات بعرض أكبر. تظهر دائرة السلة أسفل الشاشة — اضغطها لفتح السلة (تغطي الشاشة على الهاتف، وتنزلق جانباً على التابلت واللابتوب).', Icon: Smartphone },
+                    ]).map(({ value, label, desc, Icon }) => {
+                      const active = cartVisibility === value;
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => {
+                            setCartVisibility(value);
+                            toast.success('تم تحديث إعداد إظهار السلة');
+                          }}
+                          className={cn(
+                            'w-full flex items-start gap-3 p-3 rounded-xl border text-start transition-colors',
+                            active
+                              ? 'border-accent bg-accent/5 shadow-sm'
+                              : 'border-border bg-surface hover:bg-muted'
+                          )}
+                        >
+                          <div className={cn(
+                            'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                            active ? 'bg-accent text-white' : 'bg-muted text-text-secondary'
+                          )}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={cn('font-bold', active ? 'text-accent' : 'text-text-primary')}>
+                              {label}
+                            </div>
+                            <div className="text-xs text-text-secondary mt-0.5 leading-relaxed">{desc}</div>
+                          </div>
+                          {active && (
+                            <div className="w-5 h-5 rounded-full bg-accent text-white flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">✓</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

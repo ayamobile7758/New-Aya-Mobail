@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ProductGrid } from "./components/ProductGrid";
 import { CartSidebar } from "./components/CartSidebar";
 import { useCartStore } from "@/stores/cart.store";
-import { formatMoney } from "@/lib/money";
+import { useUIStore } from "@/stores/ui.store";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { ShoppingCart, X } from "lucide-react";
 
@@ -12,11 +13,20 @@ import { AddExpenseDialog } from "./components/AddExpenseDialog";
 
 export default function POSPage() {
   const navigate = useNavigate();
-  const [showMobileCart, setShowMobileCart] = useState(false);
-  const { items, getTotal, pulseTrigger } = useCartStore();
+  const { items, pulseTrigger } = useCartStore();
+  const { cartVisibility } = useUIStore();
   const [pulse, setPulse] = useState(false);
   const [showMaintDialog, setShowMaintDialog] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
+
+  // A phone is too narrow for a side-by-side cart, so there the cart always opens
+  // as a full-screen overlay. Wider screens (≥640px) open it as a sliding side panel.
+  const canDockCart = useMediaQuery('(min-width: 640px)');
+
+  // Temporary, session-only open/close state. It is seeded from the persisted
+  // preference (always → open, hidden → closed) but is NOT written back, so toggling
+  // the cart in POS never changes the saved default. A fresh launch re-seeds it.
+  const [cartOpen, setCartOpen] = useState(cartVisibility === 'always');
 
   useEffect(() => {
     if (pulseTrigger > 0) {
@@ -28,65 +38,90 @@ export default function POSPage() {
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // The cart is "docked" (pushes products aside) only in the persisted always-mode on a
+  // wide screen. Otherwise an open cart floats above the products as an overlay/side panel.
+  const isDocked = cartOpen && cartVisibility === 'always' && canDockCart;
+  const isOverlayOpen = cartOpen && !isDocked;
+
   return (
     <div className="h-full flex relative overflow-hidden bg-background">
 
-      {/* ── Tablet/Desktop Cart Sidebar — 360px, RIGHT side (first in RTL flex) ── */}
-      <div className="hidden md:flex md:w-[320px] lg:w-[360px] shrink-0 h-full border-e border-border bg-surface shadow-[4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 flex-col">
-        <CartSidebar />
-      </div>
+      {/* ── Docked Cart Sidebar — RIGHT side (first in RTL flex), always-mode only ── */}
+      {isDocked && (
+        <div className="flex w-[300px] md:w-[320px] lg:w-[360px] shrink-0 h-full border-e border-border bg-surface shadow-[4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 flex-col">
+          <CartSidebar onHideCart={() => setCartOpen(false)} />
+        </div>
+      )}
 
       {/* ── Main Products Area — fills remaining space, LEFT side ── */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
         <div className="flex-1 overflow-hidden min-h-0">
-          <ProductGrid 
+          <ProductGrid
             onAddExpense={() => setShowAddExpense(true)}
             onShowMaint={() => setShowMaintDialog(true)}
           />
         </div>
       </div>
 
-      {/* ── Mobile Cart Button (phones only, < 768px) ── */}
-      {!showMobileCart && totalItems > 0 && (
+      {/* ── Floating "open cart" button — bottom-end circle with a cart icon.
+             Shown whenever the cart is closed so the user can open it on demand. ── */}
+      {!cartOpen && (
         <button
-          onClick={() => setShowMobileCart(true)}
+          onClick={() => setCartOpen(true)}
           className={cn(
-            "md:hidden absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] start-0 end-0 mx-auto w-fit bg-text-primary text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 font-bold z-20 animate-in slide-in-from-bottom transition-transform",
+            "absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] end-3 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-20 hover:opacity-90 transition-transform",
             pulse && "scale-110"
           )}
           style={{ touchAction: 'manipulation' }}
+          aria-label="إظهار السلة"
+          title="إظهار السلة"
         >
           <div className="relative">
             <ShoppingCart className="w-6 h-6" />
-            <span className="absolute -top-2 -end-2 bg-accent text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-              {totalItems}
-            </span>
+            {totalItems > 0 && (
+              <span className="absolute -top-2.5 -end-2.5 bg-text-primary text-white text-[11px] min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full border-2 border-background">
+                {totalItems}
+              </span>
+            )}
           </div>
-          <span>عرض السلة</span>
-          <span className="numeric ms-2 border-s border-white/20 ps-4">
-            {formatMoney(getTotal())}
-          </span>
         </button>
       )}
 
-      {/* ── Mobile Cart Overlay — bottom sheet on phones ── */}
-      {showMobileCart && (
-        <div className="md:hidden fixed inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom">
-          <div className="p-3 flex items-center justify-between border-b border-border bg-surface shrink-0 gap-2">
-            <button
-              onClick={() => setShowMobileCart(false)}
-              className="flex items-center gap-1.5 h-9 px-3 bg-muted hover:bg-border rounded-lg text-sm font-bold text-text-primary transition-colors shrink-0"
-              style={{ touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif' }}
-            >
-              <X className="w-4 h-4" />
-              متابعة التسوق
-            </button>
-            <h2 className="text-base font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>السلة</h2>
+      {/* ── Cart Overlay — full-screen on phones, sliding side panel on wider screens ── */}
+      {isOverlayOpen && (
+        <>
+          {/* Backdrop (wider screens only — lets a tap outside close the panel) */}
+          {canDockCart && (
+            <div
+              className="fixed inset-0 z-40 bg-black/30 animate-in fade-in"
+              onClick={() => setCartOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+          <div
+            className={cn(
+              "z-50 bg-background flex flex-col",
+              canDockCart
+                ? "fixed inset-y-0 end-0 w-[340px] lg:w-[380px] border-s border-border shadow-[-8px_0_24px_-8px_rgba(0,0,0,0.18)] animate-in slide-in-from-right"
+                : "fixed inset-0 animate-in slide-in-from-bottom"
+            )}
+          >
+            <div className="p-3 flex items-center justify-between border-b border-border bg-surface shrink-0 gap-2">
+              <button
+                onClick={() => setCartOpen(false)}
+                className="flex items-center gap-1.5 h-9 px-3 bg-muted hover:bg-border rounded-lg text-sm font-bold text-text-primary transition-colors shrink-0"
+                style={{ touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif' }}
+              >
+                <X className="w-4 h-4" />
+                متابعة التسوق
+              </button>
+              <h2 className="text-base font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>السلة</h2>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <CartSidebar />
+            </div>
           </div>
-          <div className="flex-1 overflow-hidden">
-            <CartSidebar />
-          </div>
-        </div>
+        </>
       )}
 
       <MaintenancePinDialog
