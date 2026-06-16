@@ -299,3 +299,124 @@ export async function getDeletedExpenses(): Promise<Expense[]> {
   );
   return results as Expense[];
 }
+
+export async function updateExpense(id: string, data: {
+  amount: number;
+  category_id: string;
+  category_name: string;
+  description: string;
+  accountId: string;
+  account_name: string;
+}): Promise<void> {
+  const { amount, category_id, category_name, description, accountId, account_name } = data;
+
+  const rows = await dbClient.query(
+    `SELECT * FROM expenses WHERE id = ? AND deleted_at IS NULL`,
+    [id]
+  );
+  if (!rows.length) throw new Error('المصروف غير موجود أو محذوف مسبقاً');
+  const exp = rows[0];
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  if (await isDayClosed(today)) {
+    throw new Error(`يوم ${today} مُقفَل. تواصل مع المشرف لفتحه قبل التعديل.`);
+  }
+
+  const now = new Date().toISOString();
+  const deviceId = getDeviceId();
+  const stmts: { sql: string; params: any[] }[] = [];
+
+  // 1. Update expense record
+  stmts.push({
+    sql: `UPDATE expenses SET amount=?, category_id=?, category_name=?, description=?, account_id=?, account_name=?, updated_at=? WHERE id=?`,
+    params: [amount, category_id, category_name, description, accountId, account_name, now, id]
+  });
+
+  const oldAccountId = exp.account_id;
+  const newAccountId = accountId;
+
+  if (oldAccountId === newAccountId) {
+    if (newAccountId) {
+      // CASE A - Same account
+      const accResult = await dbClient.query('SELECT balance, name FROM accounts WHERE id = ?', [newAccountId]);
+      if (!accResult.length) throw new Error('الحساب غير موجود');
+
+      const diff = amount - exp.amount;
+      if (diff > 0 && accResult[0].balance < diff) {
+        throw new Error(`الرصيد غير كافٍ في ${accResult[0].name} (المتاح: ${accResult[0].balance / 100} د.أ)`);
+      }
+
+      // Update account balance
+      stmts.push({
+        sql: `UPDATE accounts SET balance = balance - ?, updated_at = ? WHERE id = ?`,
+        params: [diff, now, newAccountId]
+      });
+
+      // Write reversing credit for old
+      stmts.push({
+        sql: `INSERT INTO ledger_entries (id, entry_date, account_id, account_name, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          nanoid(), today, oldAccountId, exp.account_name, 'credit', exp.amount, 'expense', id,
+          `تعديل مصروف (إلغاء): ${exp.expense_number}`, now, now, deviceId
+        ]
+      });
+
+      // Write new debit for new
+      stmts.push({
+        sql: `INSERT INTO ledger_entries (id, entry_date, account_id, account_name, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          nanoid(), today, newAccountId, account_name, 'debit', amount, 'expense', id,
+          `تعديل مصروف: ${exp.expense_number} — ${description}`, now, now, deviceId
+        ]
+      });
+    }
+  } else {
+    // CASE B - Different account
+    // Refund the OLD account
+    if (oldAccountId) {
+      stmts.push({
+        sql: `UPDATE accounts SET balance = balance + ?, updated_at = ? WHERE id = ?`,
+        params: [exp.amount, now, oldAccountId]
+      });
+
+      // Write reversing credit for old
+      stmts.push({
+        sql: `INSERT INTO ledger_entries (id, entry_date, account_id, account_name, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          nanoid(), today, oldAccountId, exp.account_name, 'credit', exp.amount, 'expense', id,
+          `تعديل مصروف (إلغاء): ${exp.expense_number}`, now, now, deviceId
+        ]
+      });
+    }
+
+    // Charge the NEW account
+    if (newAccountId) {
+      const accResult = await dbClient.query('SELECT balance, name FROM accounts WHERE id = ?', [newAccountId]);
+      if (!accResult.length) throw new Error('الحساب غير موجود');
+      if (accResult[0].balance < amount) {
+        throw new Error(`الرصيد غير كافٍ في ${accResult[0].name} (المتاح: ${accResult[0].balance / 100} د.أ)`);
+      }
+
+      stmts.push({
+        sql: `UPDATE accounts SET balance = balance - ?, updated_at = ? WHERE id = ?`,
+        params: [amount, now, newAccountId]
+      });
+
+      // Write new debit for new
+      stmts.push({
+        sql: `INSERT INTO ledger_entries (id, entry_date, account_id, account_name, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          nanoid(), today, newAccountId, account_name, 'debit', amount, 'expense', id,
+          `تعديل مصروف: ${exp.expense_number} — ${description}`, now, now, deviceId
+        ]
+      });
+    }
+  }
+
+  await dbClient.batchRun(stmts);
+  await logAudit('تعديل_مصروف', `${exp.expense_number} — ${exp.amount / 100} → ${amount / 100} د.أ`, 'expense', id);
+}
