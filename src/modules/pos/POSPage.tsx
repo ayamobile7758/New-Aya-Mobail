@@ -6,8 +6,10 @@ import { SavedCartsTabs } from "./components/SavedCartsTabs";
 import { useCartStore } from "@/stores/cart.store";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { ShoppingCart, X, Shield, Lock } from "lucide-react";
+import { ShoppingCart, X, Shield, Lock, Wrench } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isMaintenanceEnabled } from "@/lib/auth";
+import { MaintenancePinDialog } from "@/components/auth/MaintenancePinDialog";
 
 export default function POSPage() {
   const navigate = useNavigate();
@@ -15,6 +17,8 @@ export default function POSPage() {
   const [showMobileCart, setShowMobileCart] = useState(false);
   const { items, getTotal, pulseTrigger } = useCartStore();
   const [pulse, setPulse] = useState(false);
+  const [maintEnabled, setMaintEnabled] = useState(false);
+  const [showMaintDialog, setShowMaintDialog] = useState(false);
 
   useEffect(() => {
     if (pulseTrigger > 0) {
@@ -23,6 +27,10 @@ export default function POSPage() {
       return () => clearTimeout(t);
     }
   }, [pulseTrigger]);
+
+  useEffect(() => {
+    isMaintenanceEnabled().then(setMaintEnabled);
+  }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -57,6 +65,17 @@ export default function POSPage() {
             <Lock className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">قفل</span>
           </button>
+          {maintEnabled && (
+            <button
+              onClick={() => setShowMaintDialog(true)}
+              className="flex items-center gap-1.5 px-3 ms-2 h-11 shrink-0 border border-border rounded-lg bg-surface hover:text-accent hover:border-accent text-text-secondary hover:text-text-primary transition-colors shadow-sm text-sm font-bold"
+              style={{ touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif' }}
+              title="الصيانة"
+            >
+              <Wrench className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">الصيانة</span>
+            </button>
+          )}
           <div className="flex-1 min-w-0 border-s border-border">
             <SavedCartsTabs />
           </div>
@@ -109,6 +128,15 @@ export default function POSPage() {
           </div>
         </div>
       )}
+
+      <MaintenancePinDialog
+        isOpen={showMaintDialog}
+        onClose={() => setShowMaintDialog(false)}
+        onSuccess={() => {
+          setShowMaintDialog(false);
+          navigate('/maintenance');
+        }}
+      />
     </div>
   );
 }
