@@ -538,96 +538,86 @@ export function CartSidebar() {
         {/* ── Bottom fixed zone ── */}
         <div className="shrink-0 border-t border-border bg-background flex flex-col gap-1.5 p-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
 
-          {/* Totals */}
-          <div className="space-y-0.5 text-sm">
-            <div className="flex justify-between text-text-secondary">
-              <span style={{ fontFamily: 'Tajawal, sans-serif' }}>المجموع الفرعي</span>
-              <span className="numeric">{formatMoney(getSubtotal())}</span>
-            </div>
+          {/* Totals & Actions Row */}
+          <div className="space-y-1.5">
+            
+            {/* Subtotal & Discount compact row */}
+            <div className="flex justify-between items-center text-xs text-text-secondary px-0.5">
+              <div className="flex items-center gap-1">
+                <span style={{ fontFamily: 'Tajawal, sans-serif' }}>المجموع الفرعي:</span>
+                <span className="numeric font-semibold">{formatMoney(getSubtotal())}</span>
+              </div>
 
-            {/* Invoice-wide discount row */}
-            <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
-                <span style={{ fontFamily: 'Tajawal, sans-serif', color: getTotalDiscount() > 0 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
-                  الخصم
-                </span>
                 <button
                   onClick={() => setShowGlobalDiscountDialog(true)}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-text-secondary hover:border-accent hover:text-accent transition-colors"
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors"
                   style={{ fontSize: '11px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation' }}
                   title="خصم على الفاتورة كاملة"
                 >
-                  <Tag className="w-3 h-3" />
-                  <span>فاتورة</span>
+                  <Tag className="w-2.5 h-2.5" />
+                  <span>خصم</span>
                 </button>
-                {currentGlobalDiscountFils > 0 && (
-                  <span
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-danger/10 text-danger"
-                    style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif' }}
-                  >
-                    {formatMoney(currentGlobalDiscountFils)}
-                    <button
-                      onClick={() => setGlobalDiscount('amount', 0)}
-                      className="w-9 h-9 flex items-center justify-center hover:opacity-70 transition-opacity"
-                      style={{ touchAction: 'manipulation' }}
-                      title="إلغاء خصم الفاتورة"
-                      aria-label="إلغاء خصم الفاتورة"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
+                
+                {getTotalDiscount() > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="numeric text-danger font-bold">− {formatMoney(getTotalDiscount())}</span>
+                    {currentGlobalDiscountFils > 0 && (
+                      <button
+                        onClick={() => setGlobalDiscount('amount', 0)}
+                        className="text-danger hover:bg-danger/10 p-0.5 rounded-full transition-colors flex items-center justify-center"
+                        style={{ touchAction: 'manipulation' }}
+                        title="إلغاء خصم الفاتورة"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-              {getTotalDiscount() > 0 ? (
-                <span className="numeric text-danger">− {formatMoney(getTotalDiscount())}</span>
-              ) : (
-                <span className="text-text-secondary">—</span>
+            </div>
+
+            {/* Action bar — qty and price only */}
+            <div className="grid grid-cols-2 gap-1.5">
+              {(
+                [
+                  { action: 'qty' as ActionType, label: 'الكمية', Icon: Hash },
+                  { action: 'price' as ActionType, label: 'السعر', Icon: Tag },
+                ] as const
+              ).map(({ action, label, Icon }) => (
+                <button
+                  key={action}
+                  disabled={!selectedItemId}
+                  onClick={() => setActiveAction(action)}
+                  style={{ height: '38px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
+                  className={cn(
+                    'rounded-lg border flex items-center justify-center gap-1 transition-colors bg-surface shadow-sm',
+                    selectedItemId
+                      ? 'border-border text-text-primary hover:bg-muted hover:border-accent'
+                      : 'border-border text-text-secondary opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Pay button with total embedded */}
+            <button
+              onClick={() => { if (items.length > 0) setIsPaymentOpen(true); }}
+              disabled={items.length === 0}
+              style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation' }}
+              className="w-full bg-[#CF694A] text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
+            >
+              <span>إتمام البيع</span>
+              {items.length > 0 && (
+                <span className="numeric bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold">
+                  {formatMoney(getTotal())}
+                </span>
               )}
-            </div>
-
-            <div className="flex justify-between items-center pt-1 border-t border-dashed border-border">
-              <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '15px', fontWeight: 700 }}>الإجمالي</span>
-              <span className="numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '19px', fontWeight: 700, color: '#CF694A' }}>
-                {formatMoney(getTotal())}
-              </span>
-            </div>
+            </button>
           </div>
-
-          {/* Action bar — qty and price only */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {(
-              [
-                { action: 'qty' as ActionType, label: 'الكمية', Icon: Hash },
-                { action: 'price' as ActionType, label: 'السعر', Icon: Tag },
-              ] as const
-            ).map(({ action, label, Icon }) => (
-              <button
-                key={action}
-                disabled={!selectedItemId}
-                onClick={() => setActiveAction(action)}
-                style={{ height: '38px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
-                className={cn(
-                  'rounded-lg border flex items-center justify-center gap-1 transition-colors',
-                  selectedItemId
-                    ? 'border-border bg-surface text-text-primary hover:bg-muted hover:border-accent'
-                    : 'border-border bg-surface text-text-secondary opacity-50 cursor-not-allowed'
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Pay button */}
-          <button
-            onClick={() => { if (items.length > 0) setIsPaymentOpen(true); }}
-            disabled={items.length === 0}
-            style={{ height: '56px', fontFamily: 'Tajawal, sans-serif', fontSize: '18px', fontWeight: 'bold', touchAction: 'manipulation' }}
-            className="w-full bg-[#CF694A] text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-sm"
-          >
-            إتمام البيع
-          </button>
         </div>
       </div>
 

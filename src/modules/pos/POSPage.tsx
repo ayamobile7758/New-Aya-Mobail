@@ -6,7 +6,7 @@ import { useCartStore } from "@/stores/cart.store";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { ShoppingCart, X } from "lucide-react";
-import { isMaintenanceEnabled } from "@/lib/auth";
+
 import { MaintenancePinDialog } from "@/components/auth/MaintenancePinDialog";
 import { AddExpenseDialog } from "./components/AddExpenseDialog";
 
@@ -15,7 +15,6 @@ export default function POSPage() {
   const [showMobileCart, setShowMobileCart] = useState(false);
   const { items, getTotal, pulseTrigger } = useCartStore();
   const [pulse, setPulse] = useState(false);
-  const [maintEnabled, setMaintEnabled] = useState(false);
   const [showMaintDialog, setShowMaintDialog] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
 
@@ -26,10 +25,6 @@ export default function POSPage() {
       return () => clearTimeout(t);
     }
   }, [pulseTrigger]);
-
-  useEffect(() => {
-    isMaintenanceEnabled().then(setMaintEnabled);
-  }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -47,7 +42,6 @@ export default function POSPage() {
           <ProductGrid 
             onAddExpense={() => setShowAddExpense(true)}
             onShowMaint={() => setShowMaintDialog(true)}
-            maintEnabled={maintEnabled}
           />
         </div>
       </div>
