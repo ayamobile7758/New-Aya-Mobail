@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy } from 'lucide-react';
+import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportDb, importDb } from '@/lib/backup';
-import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled } from '@/lib/auth';
+import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
 import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audit';
 import { getDeviceId, getDeviceName, setDeviceName } from '@/lib/device';
@@ -113,9 +113,18 @@ export default function SettingsPage() {
   const [dailyLockEnabled, setDailyLockEnabledState] = useState(true);
   const [toggleDailyAdminPin, setToggleDailyAdminPin] = useState('');
 
+  // Security - Maintenance
+  const [maintEnabled, setMaintEnabledState] = useState(false);
+  const [toggleMaintAdminPin, setToggleMaintAdminPin] = useState('');
+  const [isChangingMaint, setIsChangingMaint] = useState(false);
+  const [maintCurrentAdminPin, setMaintCurrentAdminPin] = useState('');
+  const [newMaintPin, setNewMaintPin] = useState('');
+  const [confirmMaintPin, setConfirmMaintPin] = useState('');
+
   useEffect(() => {
     if (activeTab === 'security') {
       isDailyLockEnabled().then(setDailyLockEnabledState);
+      isMaintenanceEnabled().then(setMaintEnabledState);
     }
   }, [activeTab]);
 
@@ -855,6 +864,107 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Maintenance PIN Section */}
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+                    <Wrench className="w-6 h-6 text-accent" /> رمز الصيانة (Maintenance PIN)
+                  </h2>
+                  <div className="bg-muted p-4 rounded-xl border border-border">
+                    <p className="text-sm text-text-secondary mb-4 leading-relaxed">
+                      يُستخدم للسماح لفني الصيانة بالدخول لصفحة الصيانة فقط، دون الوصول لبقية النظام.
+                    </p>
+
+                    {!isChangingMaint ? (
+                      <button
+                        onClick={() => setIsChangingMaint(true)}
+                        className="h-11 px-6 bg-surface border border-border text-text-primary font-bold rounded-lg hover:border-accent transition-colors flex items-center gap-2"
+                      >
+                        تغيير رمز الصيانة
+                      </button>
+                    ) : (
+                      <div className="space-y-4 max-w-sm bg-surface p-4 rounded-xl border border-border">
+                        <h3 className="font-bold">إعداد رمز صيانة جديد</h3>
+                        <div>
+                          <label className="block text-sm mb-1 text-text-secondary">رمز المشرف الحالي (للتحقق)</label>
+                          <input
+                            type="password" inputMode="numeric" pattern="[0-9]*"
+                            value={maintCurrentAdminPin} onChange={e => setMaintCurrentAdminPin(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent text-center tracking-widest text-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-1 text-text-secondary">رمز الصيانة الجديد</label>
+                          <input
+                            type="password" inputMode="numeric" pattern="[0-9]*"
+                            value={newMaintPin} onChange={e => setNewMaintPin(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent text-center tracking-widest text-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-1 text-text-secondary">تأكيد الرمز الجديد</label>
+                          <input
+                            type="password" inputMode="numeric" pattern="[0-9]*"
+                            value={confirmMaintPin} onChange={e => setConfirmMaintPin(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent text-center tracking-widest text-lg"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={async () => {
+                            if (newMaintPin.length < 4) { toast.error('الرمز يجب أن يكون 4 أرقام على الأقل'); return; }
+                            if (newMaintPin !== confirmMaintPin) { toast.error('الرموز غير متطابقة'); return; }
+                            try {
+                              await changeMaintenancePin(newMaintPin, maintCurrentAdminPin);
+                              toast.success('تم تغيير رمز الصيانة بنجاح');
+                              setIsChangingMaint(false);
+                              setNewMaintPin(''); setConfirmMaintPin(''); setMaintCurrentAdminPin('');
+                            } catch (e: any) { toast.error(e.message || 'خطأ في تغيير الرمز'); }
+                          }} className="flex-1 h-11 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors">
+                            حفظ
+                          </button>
+                          <button onClick={() => setIsChangingMaint(false)} className="flex-1 h-11 bg-muted text-text-primary font-bold rounded-lg hover:bg-border transition-colors border border-border">
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="border-t border-border mt-4 pt-4">
+                      <h3 className="font-bold mb-2">تفعيل/تعطيل رمز الصيانة</h3>
+                      <p className="text-xs text-text-secondary mb-3">
+                        حالة الرمز حالياً: <strong>{maintEnabled ? 'مفعّل' : 'معطّل'}</strong>. عند تفعيله، يمكن لفني الصيانة الدخول برمز خاص يفتح صفحة الصيانة فقط.
+                      </p>
+                      <div className="flex flex-col sm:flex-row items-end gap-3 max-w-md">
+                        <div className="flex-1">
+                          <label className="block text-xs mb-1 text-text-secondary">رمز المشرف الحالي (للتحقق)</label>
+                          <input
+                            type="password" inputMode="numeric" pattern="[0-9]*"
+                            value={toggleMaintAdminPin} onChange={e => setToggleMaintAdminPin(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent bg-surface text-center tracking-widest text-lg"
+                          />
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (toggleMaintAdminPin.length < 4) { toast.error('رمز المشرف مطلوب ومكون من 4 أرقام'); return; }
+                            try {
+                              const nextVal = !maintEnabled;
+                              await setMaintenanceEnabled(nextVal, toggleMaintAdminPin);
+                              toast.success(nextVal ? 'تم تفعيل رمز الصيانة بنجاح' : 'تم تعطيل رمز الصيانة بنجاح');
+                              setMaintEnabledState(nextVal);
+                              setToggleMaintAdminPin('');
+                            } catch (e: any) { toast.error(e.message || 'رمز المشرف غير صحيح'); }
+                          }}
+                          className={cn(
+                            "h-11 px-6 font-bold rounded-lg transition-colors whitespace-nowrap",
+                            maintEnabled ? "bg-danger text-white hover:opacity-90" : "bg-success text-white hover:opacity-90"
+                          )}
+                        >
+                          {maintEnabled ? "تعطيل رمز الصيانة" : "تفعيل رمز الصيانة"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

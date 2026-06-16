@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlocked, readSetting, isDailyLockEnabled } from '@/lib/auth';
+import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlocked, readSetting, isDailyLockEnabled, isMaintenanceEnabled } from '@/lib/auth';
 import { Lock, Clock } from 'lucide-react';
 import { toastError, toastSuccess } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
 
 export function DailyLockScreen() {
-  const { grantPosAccess, grantAdminAccess } = useAuth();
+  const { grantPosAccess, grantAdminAccess, grantMaintenanceAccess } = useAuth();
   const [pin, setPin] = useState('');
   const [lockoutSecs, setLockoutSecs] = useState(0);
 
@@ -45,7 +45,19 @@ export function DailyLockScreen() {
         }
       }
 
-      // 3. Fallback: failed attempt
+      // 3. Check maintenance pin if enabled
+      const maintEnabled = await isMaintenanceEnabled();
+      if (maintEnabled) {
+        const storedMaint = await readSetting('maintenance_pin');
+        if (storedMaint && await verifyCode(newPin, storedMaint)) {
+          await markUnlocked();
+          grantMaintenanceAccess();
+          toastSuccess("تم الدخول لوضع الصيانة");
+          return;
+        }
+      }
+
+      // 4. Fallback: failed attempt
       await recordFailedAttempt('daily');
       setPin('');
       toastError("الرمز غير صحيح");

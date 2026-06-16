@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
   },
 });
 
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { BackupReminderBanner } from './components/BackupReminderBanner';
 import { MigrationErrorScreen } from './components/db/MigrationErrorScreen';
@@ -125,37 +125,73 @@ export default function App() {
       <AuthProvider>
         <AuthGuard>
           <BrowserRouter>
-            <AddToHomeScreen />
-            {!isSupabaseMode() && <BackupReminderBanner />}
-            <Routes>
-              <Route element={<Shell />}>
-                {/* Public/Employee Routes */}
-                <Route path="/pos" element={<ModuleWrapper><POSPage /></ModuleWrapper>} />
-                <Route path="/products" element={<ModuleWrapper><ProductsPage /></ModuleWrapper>} />
-                <Route path="/maintenance" element={<ModuleWrapper><MaintenancePage /></ModuleWrapper>} />
-                <Route path="/more" element={<ModuleWrapper><MorePage /></ModuleWrapper>} />
-                
-                {/* Protected/Admin Routes */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/dashboard" element={<ModuleWrapper><DashboardPage /></ModuleWrapper>} />
-                  <Route path="/inventory" element={<ModuleWrapper><InventoryPage /></ModuleWrapper>} />
-                  <Route path="/sales" element={<ModuleWrapper><SalesPage /></ModuleWrapper>} />
-                  <Route path="/expenses" element={<ModuleWrapper><ExpensesPage /></ModuleWrapper>} />
-                  <Route path="/operations" element={<ModuleWrapper><OperationsPage /></ModuleWrapper>} />
-                  <Route path="/reports" element={<ModuleWrapper><ReportsPage /></ModuleWrapper>} />
-                  <Route path="/settings" element={<ModuleWrapper><SettingsPage /></ModuleWrapper>} />
-                </Route>
-
-                {/* Default redirect to POS */}
-                <Route path="/" element={<Navigate to="/pos" replace />} />
-                <Route path="*" element={<Navigate to="/pos" replace />} />
-              </Route>
-            </Routes>
+            <AppRoutes />
           </BrowserRouter>
           <Toaster position="top-center" dir="rtl" />
         </AuthGuard>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppRoutes() {
+  const { accessLevel, lockNow } = useAuth();
+
+  // Hard-isolate maintenance level: only /maintenance, no nav chrome
+  if (accessLevel === 'maintenance') {
+    return (
+      <>
+        <AddToHomeScreen />
+        <Routes>
+          <Route path="/maintenance" element={
+            <div className="flex flex-col h-screen overflow-hidden bg-background text-text-primary">
+              <ModuleWrapper><MaintenancePage /></ModuleWrapper>
+            </div>
+          } />
+          <Route path="*" element={<Navigate to="/maintenance" replace />} />
+        </Routes>
+        {/* Maintenance session badge — lock out */}
+        <button
+          dir="rtl"
+          onClick={lockNow}
+          className="fixed top-2 end-2 z-30 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer border-0 outline-none"
+          style={{ fontFamily: 'Tajawal, sans-serif' }}
+        >
+          <span>وضع الصيانة · خروج</span>
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <AddToHomeScreen />
+      {!isSupabaseMode() && <BackupReminderBanner />}
+      <Routes>
+        <Route element={<Shell />}>
+          {/* Public/Employee Routes */}
+          <Route path="/pos" element={<ModuleWrapper><POSPage /></ModuleWrapper>} />
+          <Route path="/products" element={<ModuleWrapper><ProductsPage /></ModuleWrapper>} />
+          <Route path="/maintenance" element={<ModuleWrapper><MaintenancePage /></ModuleWrapper>} />
+          <Route path="/more" element={<ModuleWrapper><MorePage /></ModuleWrapper>} />
+          
+          {/* Protected/Admin Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<ModuleWrapper><DashboardPage /></ModuleWrapper>} />
+            <Route path="/inventory" element={<ModuleWrapper><InventoryPage /></ModuleWrapper>} />
+            <Route path="/sales" element={<ModuleWrapper><SalesPage /></ModuleWrapper>} />
+            <Route path="/expenses" element={<ModuleWrapper><ExpensesPage /></ModuleWrapper>} />
+            <Route path="/operations" element={<ModuleWrapper><OperationsPage /></ModuleWrapper>} />
+            <Route path="/reports" element={<ModuleWrapper><ReportsPage /></ModuleWrapper>} />
+            <Route path="/settings" element={<ModuleWrapper><SettingsPage /></ModuleWrapper>} />
+          </Route>
+
+          {/* Default redirect to POS */}
+          <Route path="/" element={<Navigate to="/pos" replace />} />
+          <Route path="*" element={<Navigate to="/pos" replace />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 

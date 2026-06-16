@@ -101,6 +101,12 @@ export async function ensureDefaults() {
     const code = await hashCode("0000");
     await writeSetting('admin_pin', code);
   }
+
+  const maint = await readSetting('maintenance_pin');
+  if (!maint) {
+    const code = await hashCode("0000");
+    await writeSetting('maintenance_pin', { enabled: false, ...code });
+  }
 }
 
 export async function isDefaultDailyLock(): Promise<boolean> {
@@ -183,6 +189,42 @@ export async function changeAdminPin(currentPin: string, newPin: string) {
   const codeData = await hashCode(newPin);
   await writeSetting('admin_pin', codeData);
   await logAudit('تغيير_رمز_مشرف', 'تم تغيير رمز المشرف');
+}
+
+export async function isMaintenanceEnabled(): Promise<boolean> {
+  const maint = await readSetting('maintenance_pin');
+  if (!maint) return false;
+  return maint.enabled === true;
+}
+
+export async function setMaintenanceEnabled(enabled: boolean, currentAdminPin: string): Promise<void> {
+  const storedAdmin = await readSetting('admin_pin');
+  if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
+    throw new Error('Admin PIN incorrect');
+  }
+
+  const maint = await readSetting('maintenance_pin');
+  if (!maint) {
+    const code = await hashCode("0000");
+    await writeSetting('maintenance_pin', { enabled, ...code });
+  } else {
+    await writeSetting('maintenance_pin', { ...maint, enabled });
+  }
+  await logAudit('تعديل_تفعيل_رمز_صيانة', enabled ? 'تم تفعيل رمز الصيانة' : 'تم تعطيل رمز الصيانة');
+}
+
+export async function changeMaintenancePin(newCode: string, currentAdminPin: string) {
+  const storedAdmin = await readSetting('admin_pin');
+  if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
+    throw new Error('Admin PIN incorrect');
+  }
+
+  const currentMaint = await readSetting('maintenance_pin');
+  const enabled = currentMaint ? (currentMaint.enabled === true) : true;
+
+  const codeData = await hashCode(newCode);
+  await writeSetting('maintenance_pin', { enabled, ...codeData });
+  await logAudit('تغيير_رمز_صيانة', 'تم تغيير رمز الصيانة');
 }
 
 function lockoutKey(level: 'daily' | 'admin'): string {
