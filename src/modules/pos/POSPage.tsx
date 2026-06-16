@@ -6,12 +6,12 @@ import { SavedCartsTabs } from "./components/SavedCartsTabs";
 import { useCartStore } from "@/stores/cart.store";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { ShoppingCart, X, Shield } from "lucide-react";
+import { ShoppingCart, X, Shield, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function POSPage() {
   const navigate = useNavigate();
-  const { requireAdminAction } = useAuth();
+  const { requireAdminAction, lockNow } = useAuth();
   const [showMobileCart, setShowMobileCart] = useState(false);
   const { items, getTotal, pulseTrigger } = useCartStore();
   const [pulse, setPulse] = useState(false);
@@ -47,6 +47,15 @@ export default function POSPage() {
           >
             <Shield className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">دخول المدير</span>
+          </button>
+          <button
+            onClick={() => lockNow()}
+            className="flex items-center gap-1.5 px-3 h-11 shrink-0 border border-border rounded-lg bg-surface hover:text-red-500 hover:border-red-400 text-text-secondary transition-colors shadow-sm text-sm font-bold"
+            style={{ touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif' }}
+            title="قفل النظام"
+          >
+            <Lock className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">قفل</span>
           </button>
           <div className="flex-1 min-w-0 border-s border-border">
             <SavedCartsTabs />

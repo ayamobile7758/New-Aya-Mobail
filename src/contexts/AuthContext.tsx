@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { set } from 'idb-keyval';
 import { isDailyLockRequired, ensureDefaults, isDefaultDailyLock, isDefaultAdminPin, isDailyLockEnabled } from '@/lib/auth';
 import { useCartStore } from '@/stores/cart.store';
 
@@ -13,6 +14,7 @@ interface AuthContextType {
   grantAdminAccess: () => void;
   grantPosAccess: () => void;
   exitAdmin: () => Promise<void>;
+  lockNow: () => Promise<void>;
   requireAdminAction: (callback: () => void) => void;
   pendingAdminAction: (() => void) | null;
   clearPendingAdminAction: () => void;
@@ -95,6 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessLevel(required ? 'locked' : 'pos');
   };
 
+  const lockNow = async () => {
+    await set('lastUnlockAt', null);
+    setAccessLevel('locked');
+  };
+
   const requireAdminAction = (callback: () => void) => {
     if (accessLevel === 'admin') {
       callback();
@@ -121,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       grantAdminAccess,
       grantPosAccess,
       exitAdmin,
+      lockNow,
       requireAdminAction,
       pendingAdminAction,
       clearPendingAdminAction
