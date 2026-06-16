@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportDb, importDb } from '@/lib/backup';
-import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin } from '@/lib/auth';
+import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin, setAdminRecovery, getAdminRecoveryQuestion } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
 import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audit';
 import { getDeviceId, getDeviceName, setDeviceName } from '@/lib/device';
@@ -121,10 +121,18 @@ export default function SettingsPage() {
   const [newMaintPin, setNewMaintPin] = useState('');
   const [confirmMaintPin, setConfirmMaintPin] = useState('');
 
+  // Security - Admin Recovery
+  const [recoveryQuestion, setRecoveryQuestion] = useState('');
+  const [recoveryAnswer, setRecoveryAnswer] = useState('');
+  const [recoveryAdminPin, setRecoveryAdminPin] = useState('');
+  const [existingRecoveryQuestion, setExistingRecoveryQuestion] = useState<string | null>(null);
+  const [isSettingRecovery, setIsSettingRecovery] = useState(false);
+
   useEffect(() => {
     if (activeTab === 'security') {
       isDailyLockEnabled().then(setDailyLockEnabledState);
       isMaintenanceEnabled().then(setMaintEnabledState);
+      getAdminRecoveryQuestion().then(setExistingRecoveryQuestion);
     }
   }, [activeTab]);
 
@@ -416,6 +424,33 @@ export default function SettingsPage() {
       setAdminCurrentPin('');
     } catch (e: any) {
       toast.error(e.message || 'خطأ في تغيير الرمز');
+    }
+  };
+
+  const handleSaveRecovery = async () => {
+    if (!recoveryQuestion.trim()) {
+      toast.error('سؤال الاسترجاع مطلوب');
+      return;
+    }
+    if (!recoveryAnswer.trim()) {
+      toast.error('الإجابة مطلوبة');
+      return;
+    }
+    if (recoveryAdminPin.length < 4) {
+      toast.error('رمز المشرف الحالي مطلوب ومكون من 4 أرقام');
+      return;
+    }
+
+    try {
+      await setAdminRecovery(recoveryQuestion, recoveryAnswer, recoveryAdminPin);
+      toast.success('تم حفظ سؤال الاسترجاع بنجاح');
+      setExistingRecoveryQuestion(recoveryQuestion);
+      setIsSettingRecovery(false);
+      setRecoveryQuestion('');
+      setRecoveryAnswer('');
+      setRecoveryAdminPin('');
+    } catch (e: any) {
+      toast.error(e.message || 'رمز المشرف غير صحيح');
     }
   };
 
@@ -861,6 +896,69 @@ export default function SettingsPage() {
                             تأكيد التغيير
                           </button>
                           <button onClick={() => setIsChangingAdmin(false)} className="flex-1 h-11 bg-muted text-text-primary font-bold rounded-lg hover:bg-border transition-colors border border-border">
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Admin Recovery Section */}
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+                    <Key className="w-6 h-6 text-accent" /> سؤال استرجاع رمز المشرف (Recovery Question)
+                  </h2>
+                  <div className="bg-muted p-4 rounded-xl border border-border">
+                    <p className="text-sm text-text-secondary mb-4 leading-relaxed">
+                      يُستخدم لاسترجاع وإعادة تعيين رمز المشرف إذا تم نسيانه.
+                    </p>
+                    
+                    {existingRecoveryQuestion && (
+                      <p className="text-xs text-text-secondary mb-3">
+                        السؤال الحالي: <strong>{existingRecoveryQuestion}</strong>
+                      </p>
+                    )}
+
+                    {!isSettingRecovery ? (
+                      <button
+                        onClick={() => setIsSettingRecovery(true)}
+                        className="h-11 px-6 bg-surface border border-border text-text-primary font-bold rounded-lg hover:border-accent transition-colors flex items-center gap-2"
+                      >
+                        {existingRecoveryQuestion ? 'تغيير سؤال الاسترجاع' : 'إعداد سؤال الاسترجاع'}
+                      </button>
+                    ) : (
+                      <div className="space-y-4 max-w-sm bg-surface p-4 rounded-xl border border-border">
+                        <h3 className="font-bold">إعداد سؤال استرجاع</h3>
+                        <div>
+                          <label className="block text-sm mb-1 text-text-secondary">رمز المشرف الحالي (للتحقق)</label>
+                          <input
+                            type="password" inputMode="numeric" pattern="[0-9]*"
+                            value={recoveryAdminPin} onChange={e => setRecoveryAdminPin(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent text-center tracking-widest text-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-1 text-text-secondary">السؤال (مثال: ما اسم مدينتك الأولى؟)</label>
+                          <input
+                            type="text"
+                            value={recoveryQuestion} onChange={e => setRecoveryQuestion(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-1 text-text-secondary">الإجابة</label>
+                          <input
+                            type="text"
+                            value={recoveryAnswer} onChange={e => setRecoveryAnswer(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={handleSaveRecovery} className="flex-1 h-11 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors">
+                            حفظ
+                          </button>
+                          <button onClick={() => setIsSettingRecovery(false)} className="flex-1 h-11 bg-muted text-text-primary font-bold rounded-lg hover:bg-border transition-colors border border-border">
                             إلغاء
                           </button>
                         </div>
