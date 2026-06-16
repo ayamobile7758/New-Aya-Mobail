@@ -551,10 +551,10 @@ export function CartSidebar() {
         </div>
 
         {/* ── Bottom fixed zone ── */}
-        <div className="shrink-0 border-t border-border bg-background flex flex-col gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
+        <div className="shrink-0 border-t border-border bg-background flex flex-col gap-1.5 p-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
 
           {/* Totals */}
-          <div className="space-y-1 text-sm">
+          <div className="space-y-0.5 text-sm">
             <div className="flex justify-between text-text-secondary">
               <span style={{ fontFamily: 'Tajawal, sans-serif' }}>المجموع الفرعي</span>
               <span className="numeric">{formatMoney(getSubtotal())}</span>
@@ -602,7 +602,7 @@ export function CartSidebar() {
 
             <div className="flex justify-between items-center pt-1 border-t border-dashed border-border">
               <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '15px', fontWeight: 700 }}>الإجمالي</span>
-              <span className="numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '22px', fontWeight: 700, color: '#CF694A' }}>
+              <span className="numeric" style={{ fontFamily: 'Inter, sans-serif', fontSize: '19px', fontWeight: 700, color: '#CF694A' }}>
                 {formatMoney(getTotal())}
               </span>
             </div>
@@ -638,7 +638,7 @@ export function CartSidebar() {
           <button
             onClick={() => { if (items.length > 0) setIsPaymentOpen(true); }}
             disabled={items.length === 0}
-            style={{ height: '64px', fontFamily: 'Tajawal, sans-serif', fontSize: '18px', fontWeight: 'bold', touchAction: 'manipulation' }}
+            style={{ height: '56px', fontFamily: 'Tajawal, sans-serif', fontSize: '18px', fontWeight: 'bold', touchAction: 'manipulation' }}
             className="w-full bg-[#CF694A] text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-sm"
           >
             إتمام البيع
