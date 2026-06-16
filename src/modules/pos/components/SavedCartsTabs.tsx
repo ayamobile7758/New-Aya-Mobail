@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { useCartStore } from '@/stores/cart.store';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog } from '@/components/ui/Dialog';
 
@@ -17,18 +17,7 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
   
   const [cartToDelete, setCartToDelete] = useState<string | null>(null);
 
-  // Long press logic
-  let pressTimer: ReturnType<typeof setTimeout>;
-  
-  const handleTouchStart = (id: string) => {
-    pressTimer = setTimeout(() => {
-      setCartToDelete(id);
-    }, 500);
-  };
-  
-  const handleTouchEnd = () => {
-    clearTimeout(pressTimer);
-  };
+
 
   const handleAddCart = () => {
     if (savedCarts.length >= 3) return;
@@ -58,15 +47,15 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
 
   return (
     <>
-      <div className={cn("h-12 w-full border-b border-border bg-background flex items-center px-2 z-10 shrink-0 transition-all", pulse && "bg-accent/10")}>
-        <div className="flex-1 flex gap-2 h-full items-end overflow-x-auto no-scrollbar">
+      <div className={cn("h-10 w-full border-b border-border bg-background flex items-center px-2 z-10 shrink-0 transition-all", pulse && "bg-accent/10")}>
+        <div className="flex-1 flex gap-1.5 h-full items-end overflow-x-auto no-scrollbar">
           {activeCartId === 'default' && items.length > 0 && (
             <div 
-              className="h-10 min-w-[100px] px-4 flex items-center justify-center rounded-t-lg bg-surface border-border border-t border-x cursor-pointer shrink-0"
+              className="h-8 min-w-[90px] px-2.5 flex items-center justify-center rounded-t-lg bg-surface border-border border-t border-x cursor-pointer shrink-0"
               onClick={() => {}}
             >
-              <span className={cn("text-sm font-medium", "text-[#CF694A]")}>الحالية (غير محفوظة)</span>
-              {items.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-danger ms-2" />}
+              <span className={cn("text-xs font-medium", "text-[#CF694A]")}>الحالية</span>
+              {items.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-danger ms-1.5" />}
             </div>
           )}
           {savedCarts.map(cart => {
@@ -74,21 +63,30 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
             return (
               <div 
                 key={cart.id}
-                onMouseDown={() => handleTouchStart(cart.id)}
-                onMouseUp={handleTouchEnd}
-                onMouseLeave={handleTouchEnd}
-                onTouchStart={() => handleTouchStart(cart.id)}
-                onTouchEnd={handleTouchEnd}
                 onClick={() => switchToCart(cart.id)}
                 className={cn(
-                  "h-10 min-w-[100px] px-4 flex items-center justify-center rounded-t-lg cursor-pointer transition-colors shrink-0",
+                  "h-8 min-w-[90px] px-2.5 flex items-center justify-between rounded-t-lg cursor-pointer transition-colors shrink-0",
                   isActive 
-                    ? "bg-white border-b-[3px] border-b-[#CF694A] text-text" 
-                    : "bg-[#F3F1EC] text-[#6D6A62] pb-[3px]"
+                    ? "bg-white border-b-2 border-b-[#CF694A] text-text" 
+                    : "bg-[#F3F1EC] text-[#6D6A62]"
                 )}
               >
-                <span className="text-sm font-medium truncate max-w-[120px]">{cart.name}</span>
-                {cart.items.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-danger ms-2 shrink-0" />}
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-xs font-medium truncate max-w-[80px]">{cart.name}</span>
+                  {cart.items.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />}
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCartToDelete(cart.id);
+                  }}
+                  className="p-0.5 hover:bg-black/10 rounded-full transition-colors ms-1 shrink-0 text-[#6D6A62] hover:text-danger"
+                  title="إلغاء السلة"
+                  aria-label="إلغاء السلة"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
             );
           })}
@@ -96,24 +94,24 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
           {savedCarts.length < 3 && (
             <button
               onClick={handleAddCart}
-              className="h-10 w-10 flex items-center justify-center bg-accent text-white rounded-t-lg font-bold transition-colors hover:bg-accent-hover shrink-0 mb-[3px] shadow-sm"
+              className="h-8 w-8 flex items-center justify-center bg-accent text-white rounded-t-lg font-bold transition-colors hover:bg-accent-hover shrink-0 shadow-sm"
               title="زبون جديد"
               aria-label="زبون جديد"
               style={{ touchAction: 'manipulation' }}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
             </button>
           )}
         </div>
         {itemCount !== undefined && itemCount > 0 && onClearCart && (
           <button
             onClick={onClearCart}
-            className="w-10 h-10 flex items-center justify-center text-danger hover:bg-danger/10 rounded-full transition-colors ms-2"
+            className="w-8 h-8 flex items-center justify-center text-danger hover:bg-danger/10 rounded-full transition-colors ms-1.5"
             style={{ touchAction: 'manipulation' }}
             title="مسح السلة"
             aria-label="مسح السلة"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4.5 h-4.5" />
           </button>
         )}
       </div>
