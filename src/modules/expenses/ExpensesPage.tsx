@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getFilteredExpenses, addExpense, getExpenseCategories, deleteExpense } from '@/db/queries/expenses';
+import { getFilteredExpenses, addExpense, getExpenseCategories, deleteExpense, updateExpense } from '@/db/queries/expenses';
 import { getActiveAccounts } from '@/db/queries/accounts';
 import { formatMoney, parseMoney } from '@/lib/money';
-import { Plus, Receipt, CheckCircle, Settings, Download, Calendar, Trash2 } from 'lucide-react';
+import { Plus, Receipt, CheckCircle, Settings, Download, Calendar, Trash2, Pencil, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseCategoriesDialog } from './components/ExpenseCategoriesDialog';
@@ -19,6 +19,13 @@ export default function ExpensesPage() {
   const [description, setDescription] = useState('');
   const [accountId, setAccountId] = useState('');
   const [showAccountPicker, setShowAccountPicker] = useState(false);
+  
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmountInput, setEditAmountInput] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [showEditAccountPicker, setShowEditAccountPicker] = useState(false);
   
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-01'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -85,6 +92,34 @@ export default function ExpensesPage() {
     },
     onError: (err: any) => {
       toast.error('خطأ أثناء تسجيل المصروف: ' + err.message);
+    }
+  });
+
+  const editExpenseMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingId) return;
+      const selectedCategory = categories.find(c => c.id === editCategoryId);
+      const selectedAcc = accounts.find(a => a.id === editAccountId);
+      
+      await updateExpense(editingId, {
+        amount: parseMoney(editAmountInput),
+        category_id: editCategoryId,
+        category_name: selectedCategory?.name || '',
+        description: editDescription,
+        accountId: editAccountId,
+        account_name: selectedAcc?.name || ''
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses-filtered', startDate, endDate] });
+      queryClient.invalidateQueries({ queryKey: ['active-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+      toast.success('تم تعديل المصروف بنجاح');
+      setEditingId(null);
+    },
+    onError: (err: any) => {
+      toast.error('خطأ أثناء تعديل المصروف: ' + err.message);
     }
   });
 
@@ -305,6 +340,20 @@ export default function ExpensesPage() {
                           - {formatMoney(expense.amount)}
                         </div>
                         <button
+                          onClick={() => requireAdminAction(() => {
+                            setEditingId(expense.id);
+                            setEditAmountInput(String(expense.amount / 100));
+                            setEditCategoryId(expense.category_id);
+                            setEditDescription(expense.description);
+                            setEditAccountId(expense.account_id);
+                            setShowEditAccountPicker(false);
+                          })}
+                          className="p-2 text-text-secondary hover:text-accent hover:bg-accent/10 rounded-full transition-colors"
+                          aria-label="تعديل"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => requireAdminAction(async () => {
                             if (!confirm('هل أنت متأكد من حذف هذا المصروف؟ سيتم إرجاع المبلغ للحساب.')) return;
                             try {
@@ -342,6 +391,129 @@ export default function ExpensesPage() {
         </div>
       </main>
       
+      {editingId && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          dir="rtl"
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingId(null); }}
+        >
+          <div className="bg-surface w-full max-w-md rounded-[24px] p-6 shadow-xl relative animate-in zoom-in-95 flex flex-col text-text-primary">
+            <button
+              onClick={() => setEditingId(null)}
+              className="absolute top-4 end-4 p-2 text-text-secondary hover:bg-muted rounded-full transition-colors outline-none"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6 mt-2">
+              <div className="w-10 h-10 bg-accent/10 border border-accent/20 text-accent rounded-xl flex items-center justify-center">
+                <Pencil className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">تعديل المصروف</h2>
+                <p className="text-xs text-text-secondary">تعديل تفاصيل المصروف الحالي</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">المبلغ <span className="text-danger">*</span></label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    inputMode="decimal"
+                    value={editAmountInput}
+                    onChange={(e) => setEditAmountInput(e.target.value)}
+                    className="w-full h-12 pe-12 ps-4 rounded-xl border border-border bg-background focus:border-accent focus:ring-1 outline-none text-xl font-bold numeric"
+                    placeholder="0"
+                  />
+                  <span className="absolute start-4 top-1/2 -translate-y-1/2 text-text-secondary text-sm font-medium">د.أ</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">التبويب <span className="text-danger">*</span></label>
+                <select 
+                  value={editCategoryId}
+                  onChange={(e) => setEditCategoryId(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:border-accent outline-none font-medium"
+                >
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">البيان (التفاصيل) <span className="text-danger">*</span></label>
+                <input 
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:border-accent outline-none"
+                />
+              </div>
+
+              <div>
+                {!showEditAccountPicker ? (
+                  <div className="flex items-center justify-between bg-muted/40 px-3 py-2.5 rounded-xl border border-border text-sm">
+                    <span className="text-text-secondary">
+                      الحساب: <span className="font-medium text-text-primary">
+                        {accounts.find(a => a.id === editAccountId)?.name || '—'}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditAccountPicker(true)}
+                      className="text-accent text-xs font-medium hover:underline ms-3 shrink-0"
+                      style={{ fontFamily: 'Tajawal, sans-serif' }}
+                    >
+                      تغيير
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-medium">الدفع من حساب <span className="text-danger">*</span></label>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditAccountPicker(false)}
+                        className="text-text-secondary text-xs hover:text-accent transition-colors"
+                        style={{ fontFamily: 'Tajawal, sans-serif' }}
+                      >
+                        إخفاء ▲
+                      </button>
+                    </div>
+                    <select 
+                      value={editAccountId}
+                      onChange={(e) => { setEditAccountId(e.target.value); setShowEditAccountPicker(false); }}
+                      className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:border-accent outline-none font-medium"
+                    >
+                      {accounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>{acc.name} ({formatMoney(acc.balance)})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => editExpenseMutation.mutate()}
+                disabled={editExpenseMutation.isPending || !editAmountInput || !editDescription || !editCategoryId || !editAccountId}
+                className="flex-1 h-12 bg-accent text-white font-bold rounded-xl disabled:opacity-50 hover:bg-accent-hover transition-colors shadow-sm flex items-center justify-center gap-2"
+              >
+                <CheckCircle className="w-5 h-5" /> حفظ التعديل
+              </button>
+              <button
+                onClick={() => setEditingId(null)}
+                className="px-4 h-12 bg-muted text-text-primary font-medium rounded-xl hover:bg-muted/80 transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ExpenseCategoriesDialog isOpen={isCategoriesOpen} onClose={() => setIsCategoriesOpen(false)} />
     </div>
   );
