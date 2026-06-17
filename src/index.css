@@ -97,6 +97,9 @@
     var(--color-accent) 100%
   );
   background-size: 200% 100%;
+}
+
+.admin-mode-line-pulse {
   animation: admin-line-slide 4s linear infinite;
 }
 

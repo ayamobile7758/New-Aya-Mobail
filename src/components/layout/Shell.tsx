@@ -69,7 +69,7 @@ export function Shell() {
             className={cn(
               'admin-mode-line fixed top-0 inset-x-0 z-[60] pointer-events-none transition-all duration-500',
               adminPulse
-                ? 'h-[6px] shadow-[0_0_14px_rgba(207,105,74,0.9)]'
+                ? 'admin-mode-line-pulse h-[6px] shadow-[0_0_14px_rgba(207,105,74,0.9)]'
                 : 'h-[3px] shadow-[0_0_6px_rgba(207,105,74,0.5)]'
             )}
           />
