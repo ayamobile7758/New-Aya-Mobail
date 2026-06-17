@@ -142,7 +142,21 @@ export default function MaintenancePage() {
               />
             </div>
             
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+            {/* Mobile status select dropdown */}
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="sm:hidden h-11 box-border w-full rounded-xl border border-border bg-surface px-3 font-medium outline-none focus:border-accent text-text-secondary"
+            >
+              {['all', 'new', 'in_progress', 'ready', 'delivered', 'cancelled'].map((s) => (
+                <option key={s} value={s}>
+                  {s === 'all' ? 'الكل' : STATUS_MAP[s as keyof typeof STATUS_MAP].label}
+                </option>
+              ))}
+            </select>
+
+            {/* Desktop status tabs */}
+            <div className="hidden sm:flex gap-2 overflow-x-auto hide-scrollbar pb-1">
               {['all', 'new', 'in_progress', 'ready', 'delivered', 'cancelled'].map((s) => (
                 <button
                   key={s}
