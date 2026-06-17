@@ -72,6 +72,10 @@ export async function addExpense(data: {
 }) {
   const { amount, category_id, category_name, description, accountId, account_name } = data;
 
+  if (amount <= 0) {
+    throw new Error('المبلغ يجب أن يكون أكبر من صفر');
+  }
+
   // C-9: clock-tampering guard — replaces bare `format(new Date(), 'yyyy-MM-dd')`.
   const today = await assertClockNotTampered();
   if (await isDayClosed(today)) {
@@ -154,10 +158,9 @@ export async function getFilteredExpenses(startDate?: string, endDate?: string, 
   
   query += ` ORDER BY created_at DESC`;
   
-  if (limit !== null) {
-    query += ` LIMIT ?`;
-    params.push(limit);
-  }
+  const finalLimit = limit === null ? 500 : limit;
+  query += ` LIMIT ?`;
+  params.push(finalLimit);
   
   const results = await dbClient.query(query, params);
   return results as Expense[];
