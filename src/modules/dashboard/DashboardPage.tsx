@@ -231,7 +231,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-bold">آخر 5 فواتير مبيعات</h2>
                 <Link to="/sales" className="text-accent text-sm font-medium hover:underline">عرض الكل</Link>
               </div>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm text-start min-w-[640px]">
                   <thead className="bg-muted text-text-secondary font-medium">
                     <tr>
@@ -257,6 +257,24 @@ export default function DashboardPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="md:hidden p-4 space-y-3">
+                {recentInvoices.map(inv => (
+                  <div key={inv.id} className="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-2 shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-accent">#{inv.invoice_number}</span>
+                      <span className="text-text-secondary text-xs" dir="ltr">{format(parseISO(inv.created_at), 'hh:mm a')}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-text-secondary font-medium">{inv.customer_name || 'عميل نقدي'}</span>
+                      <span className="font-bold numeric text-text-primary">{formatMoney(inv.total_amount)}</span>
+                    </div>
+                  </div>
+                ))}
+                {recentInvoices.length === 0 && (
+                  <div className="text-center py-8 text-text-secondary">لا توجد فواتير اليوم</div>
+                )}
               </div>
             </section>
             
