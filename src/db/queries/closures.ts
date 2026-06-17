@@ -47,6 +47,7 @@ export interface DayClosureSnapshot {
   expenses_total: number;
   topup_profit: number;
   maintenance_revenue: number;
+  inventory_adjustments_total: number;
   net_profit: number;
   notes?: string | null;
 }
@@ -123,6 +124,13 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     [targetDate]
   );
 
+  const [adjRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END), 0) AS total
+     FROM ledger_entries
+     WHERE ref_type = 'inventory_adjustment' AND entry_date = ?`,
+    [targetDate]
+  );
+
   const sales_total          = Number(salesRow?.total              ?? 0);
   const discounts_total      = Number(salesRow?.discounts          ?? 0);
   const cogs_total           = Number(cogsRow?.cogs                ?? 0);
@@ -131,6 +139,7 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
   const expenses_total       = Number(expRow?.expenses             ?? 0);
   const topup_profit         = Number(topupRow?.topup_profit       ?? 0);
   const maintenance_revenue  = Number(mainRow?.maintenance_revenue ?? 0);
+  const inventory_adjustments_total = Number(adjRow?.total            ?? 0);
 
   // C-5 CORRECTED FORMULA — aligned with getProfitAndLoss in reports.ts.
   // Old code: net = sales - cogs + topup + maintenance - expenses
@@ -151,7 +160,8 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     - partial_returns_total
     + topup_profit
     + maintenance_revenue
-    - expenses_total;
+    - expenses_total
+    - inventory_adjustments_total;
 
   return {
     closure_date: targetDate,
@@ -163,6 +173,7 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     expenses_total,
     topup_profit,
     maintenance_revenue,
+    inventory_adjustments_total,
     net_profit,
   };
 }

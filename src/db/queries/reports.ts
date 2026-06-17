@@ -111,6 +111,14 @@ export async function getReport(fromDate: string, toDate: string) {
     [fromDate, toDate]
   );
 
+  const [adjRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END), 0) AS total
+     FROM ledger_entries
+     WHERE ref_type = 'inventory_adjustment'
+       AND entry_date BETWEEN ? AND ?`,
+    [fromDate, toDate]
+  );
+
   const totalSales = kpiRow?.total_sales ?? 0;
   const totalDiscounts = kpiRow?.total_discounts ?? 0;
   const invoiceCount = kpiRow?.invoice_count ?? 0;
@@ -125,9 +133,10 @@ export async function getReport(fromDate: string, toDate: string) {
   const totalExpenses = expRow?.total_expenses ?? 0;
   const topupProfit = Number(topupRow?.total ?? 0);
   const maintenanceRevenue = Number(mainRow?.total ?? 0);
-  // C-4 + C-1: net profit = grossProfit + topup + maintenance - expenses.
+  const inventoryAdjustmentsTotal = Number(adjRow?.total ?? 0);
+  // C-4 + C-1: net profit = grossProfit + topup + maintenance - expenses - inventoryAdjustmentsTotal
   // No payment-fee term (C-2 decision: fees are not tracked).
-  const netProfit = grossProfit + topupProfit + maintenanceRevenue - totalExpenses;
+  const netProfit = grossProfit + topupProfit + maintenanceRevenue - totalExpenses - inventoryAdjustmentsTotal;
   const returnCount = retRow?.return_count ?? 0;
   const returnValue = retRow?.return_value ?? 0;
   const giftCost = giftRow?.gift_cost ?? 0;
@@ -270,6 +279,7 @@ export async function getReport(fromDate: string, toDate: string) {
       topupProfit,           // NEW (C-4)
       maintenanceRevenue,    // NEW (C-4)
       partialReturnsTotal,   // NEW (C-1)
+      inventoryAdjustmentsTotal,
       netProfit,
       returnCount,
       returnValue,
@@ -300,6 +310,7 @@ export interface ProfitAndLoss {
   topup_profit: number;
   maintenance_revenue: number;
   other_income: number;
+  inventory_adjustments_total: number;
   net_profit: number;
   period: { fromDate: string; toDate: string };
 }
@@ -376,6 +387,14 @@ export async function getProfitAndLoss(fromDate: string, toDate: string): Promis
     [fromDate, toDate]
   );
 
+  const [adjRow] = await dbClient.query(
+    `SELECT COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END), 0) AS total
+     FROM ledger_entries
+     WHERE ref_type = 'inventory_adjustment'
+       AND entry_date BETWEEN ? AND ?`,
+    [fromDate, toDate]
+  );
+
   const sales_gross        = Number(salesRow?.total  ?? 0);
   const returns_total      = Number(returnsRow?.total ?? 0);
   const partial_returns_total = Number(partialReturnsRow?.total ?? 0);
@@ -389,8 +408,9 @@ export async function getProfitAndLoss(fromDate: string, toDate: string): Promis
   const topup_profit       = Number(topupRow?.total  ?? 0);
   const maintenance_revenue = Number(mainRow?.total  ?? 0);
   const other_income       = topup_profit + maintenance_revenue;
+  const inventory_adjustments_total = Number(adjRow?.total  ?? 0);
   // No payment-fee term (C-2 decision: fees are not tracked).
-  const net_profit         = gross_profit + other_income - expenses_total;
+  const net_profit         = gross_profit + other_income - expenses_total - inventory_adjustments_total;
 
   return {
     sales_gross,
@@ -407,6 +427,7 @@ export async function getProfitAndLoss(fromDate: string, toDate: string): Promis
     topup_profit,
     maintenance_revenue,
     other_income,
+    inventory_adjustments_total,
     net_profit,
     period: { fromDate, toDate },
   };
