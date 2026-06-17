@@ -352,6 +352,15 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
       params: [netRefund, now, refund.accountId],
     });
     stmts.push({
+      sql: `DO $$
+            BEGIN
+              IF (SELECT balance FROM accounts WHERE id = ?) < 0 THEN
+                RAISE EXCEPTION 'INSUFFICIENT_BALANCE';
+              END IF;
+            END $$;`,
+      params: [refund.accountId],
+    });
+    stmts.push({
       sql: `INSERT INTO ledger_entries
               (id, entry_date, account_id, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -363,7 +372,14 @@ export async function returnInvoice(invoiceId: string, refunds: { accountId: str
     });
   }
 
-  await dbClient.batchRun(stmts);
+  try {
+    await dbClient.batchRun(stmts);
+  } catch (err: any) {
+    if (err.message?.includes('INSUFFICIENT_BALANCE') || err.message?.includes('division by zero')) {
+      throw new Error('الرصيد غير كافٍ في حساب الاسترجاع');
+    }
+    throw err;
+  }
 
   // P4: تسجيل سجل التدقيق — يميّز بين الاسترجاع الكامل والجزئي
   const auditAction = newStatus === 'returned'

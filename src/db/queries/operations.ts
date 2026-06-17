@@ -297,6 +297,15 @@ export async function createTransfer({
       params: [amount, timestamp, from_account_id]
     },
     {
+      sql: `DO $$
+            BEGIN
+              IF (SELECT balance FROM accounts WHERE id = ?) < 0 THEN
+                RAISE EXCEPTION 'INSUFFICIENT_BALANCE';
+              END IF;
+            END $$;`,
+      params: [from_account_id]
+    },
+    {
       sql: `INSERT INTO ledger_entries (id, entry_date, account_id, account_name, type, amount, ref_type, ref_id, description, created_at, updated_at, device_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [nanoid(), dateStr, from_account_id, from_account_name, 'debit', amount, 'transfer', transferId, `تحويل صادر: ${transferNumber}`, timestamp, timestamp, deviceId]
@@ -313,7 +322,14 @@ export async function createTransfer({
     }
   ];
 
-  await dbClient.batchRun(tx);
+  try {
+    await dbClient.batchRun(tx);
+  } catch (err: any) {
+    if (err.message?.includes('INSUFFICIENT_BALANCE') || err.message?.includes('division by zero')) {
+      throw new Error(`الرصيد غير كافٍ في ${from_account_name}`);
+    }
+    throw err;
+  }
   await logAudit(
     'تحويل_جديد',
     `${transferNumber} — من ${from_account_name} إلى ${to_account_name} — ${amount / 100} د.أ`,
