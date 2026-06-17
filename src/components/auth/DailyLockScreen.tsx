@@ -125,58 +125,60 @@ export function DailyLockScreen() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center p-6 animate-in fade-in" dir="rtl">
-      <div className="mb-12 flex flex-col items-center">
-        <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-          <Lock className="w-8 h-8" />
-        </div>
-        <h1 className="text-2xl font-bold mb-2">تسجيل الدخول لليوم</h1>
-        <p className="text-text-secondary text-center max-w-sm">
-          يرجى إدخال الركن الموحد (Daily Lock) لفتح نظام المبيعات
-        </p>
-      </div>
-
-      {/* A-1: "requires internet" banner — shown when navigator.onLine is false */}
-      {!isOnline && (
-        <div className="mb-8 w-full max-w-sm bg-danger-bg border border-danger text-danger px-4 py-3 rounded-xl flex items-center gap-3 text-center font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-          <WifiOff className="w-6 h-6 shrink-0" />
-          <span className="text-sm">
-            التطبيق غير متصل بالإنترنت — لا يمكن تسجيل المبيعات حتى يستعيد الاتصال.
-          </span>
-        </div>
-      )}
-
-      {lockoutSecs > 0 ? (
-        <div className="flex flex-col items-center text-danger bg-danger/10 p-6 rounded-2xl mb-8">
-          <Clock className="w-10 h-10 mb-4 animate-pulse" />
-          <p className="font-bold text-xl mb-1">تم قفل النظام مؤقتاً</p>
-          <p>الرجاء المحاولة بعد {lockoutSecs} ثانية</p>
-        </div>
-      ) : (
-        <>
-          <div className="flex gap-4 mb-12" dir="ltr">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                  pin.length > i
-                    ? 'border-accent bg-accent text-white scale-110'
-                    : 'border-border bg-surface'
-                }`}
-              >
-                {pin.length > i ? '•' : ''}
-              </div>
-            ))}
+    <div className="fixed inset-0 z-[9999] bg-background overflow-y-auto" dir="rtl">
+      <div className="min-h-full flex flex-col items-center justify-center p-4 py-8 animate-in fade-in">
+        <div className="mb-6 sm:mb-10 flex flex-col items-center">
+          <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
+            <Lock className="w-8 h-8" />
           </div>
+          <h1 className="text-2xl font-bold mb-2">تسجيل الدخول لليوم</h1>
+          <p className="text-text-secondary text-center max-w-sm text-sm">
+            يرجى إدخال الركن الموحد (Daily Lock) لفتح نظام المبيعات
+          </p>
+        </div>
 
-          <NumPad
-            onDigit={(num) => handleKeyPress(Number(num))}
-            onClear={handleBackspace}
-            onSubmit={() => handleKeypadSubmit(pin)}
-            submitDisabled={pin.length < 4}
-          />
-        </>
-      )}
+        {/* A-1: "requires internet" banner — shown when navigator.onLine is false */}
+        {!isOnline && (
+          <div className="mb-6 w-full max-w-sm bg-danger-bg border border-danger text-danger px-4 py-3 rounded-xl flex items-center gap-3 text-center font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+            <WifiOff className="w-6 h-6 shrink-0" />
+            <span className="text-sm">
+              التطبيق غير متصل بالإنترنت — لا يمكن تسجيل المبيعات حتى يستعيد الاتصال.
+            </span>
+          </div>
+        )}
+
+        {lockoutSecs > 0 ? (
+          <div className="flex flex-col items-center text-danger bg-danger/10 p-6 rounded-2xl mb-8">
+            <Clock className="w-10 h-10 mb-4 animate-pulse" />
+            <p className="font-bold text-xl mb-1">تم قفل النظام مؤقتاً</p>
+            <p>الرجاء المحاولة بعد {lockoutSecs} ثانية</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-4 mb-6 sm:mb-10" dir="ltr">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
+                    pin.length > i
+                      ? 'border-accent bg-accent text-white scale-110'
+                      : 'border-border bg-surface'
+                  }`}
+                >
+                  {pin.length > i ? '•' : ''}
+                </div>
+              ))}
+            </div>
+
+            <NumPad
+              onDigit={(num) => handleKeyPress(Number(num))}
+              onClear={handleBackspace}
+              onSubmit={() => handleKeypadSubmit(pin)}
+              submitDisabled={pin.length < 4}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }
