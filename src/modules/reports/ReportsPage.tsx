@@ -413,8 +413,23 @@ export default function ReportsPage() {
       <main className="flex-1 overflow-y-auto p-4">
         <div className="max-w-6xl mx-auto space-y-5">
           {isLoading ? (
-            <div className="p-16 flex justify-center">
-              <div className="animate-spin w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full" />
+            <div className="space-y-6">
+              {/* KPI Cards Skeletons */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-2 animate-pulse">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-muted rounded-full" />
+                      <div className="h-4 bg-muted rounded w-2/3" />
+                    </div>
+                    <div className="h-6 bg-muted rounded w-1/2" />
+                    <div className="h-3 bg-muted rounded w-1/3" />
+                  </div>
+                ))}
+              </div>
+              <div className="p-16 flex justify-center">
+                <div className="animate-spin w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full" />
+              </div>
             </div>
           ) : report ? (
             <>

@@ -270,8 +270,14 @@ export function ProductGrid({ onAddExpense, onShowMaint }: ProductGridProps) {
       {/* ── Grid ── */}
       <div ref={parentRef} className="flex-1 overflow-y-auto p-4 pb-24 lg:pb-4">
         {isLoading ? (
-          <div className="flex justify-center py-8" aria-live="polite" aria-label="جاري التحميل">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3" aria-live="polite" aria-label="جاري التحميل">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="bg-surface border border-border rounded-xl p-3 h-28 animate-pulse flex flex-col justify-between">
+                <div className="h-4 bg-muted rounded w-3/4" />
+                <div className="h-3 bg-muted rounded w-1/2" />
+                <div className="h-4 bg-muted rounded w-1/3 self-end" />
+              </div>
+            ))}
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-16 text-text-secondary flex flex-col items-center gap-3" role="status">
