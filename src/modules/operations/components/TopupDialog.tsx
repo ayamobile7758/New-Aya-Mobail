@@ -49,6 +49,7 @@ export function TopupDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () 
     mutationFn: createTopup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['ledger-period'] });
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('تم تسجيل شحن الرصيد بنجاح');

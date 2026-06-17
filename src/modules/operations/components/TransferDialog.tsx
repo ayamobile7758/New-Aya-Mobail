@@ -38,6 +38,7 @@ export function TransferDialog({ isOpen, onClose }: { isOpen: boolean; onClose: 
     mutationFn: createTransfer,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['ledger-period'] });
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('تم تحويل المبلغ بنجاح');
