@@ -158,7 +158,7 @@ export default function SalesPage() {
               placeholder="البحث برقم الفاتورة..."
               value={invoiceNumber}
               onChange={e => setInvoiceNumber(e.target.value)}
-              className="w-full h-11 pe-10 ps-4 rounded-xl border border-border bg-background focus:border-accent outline-none text-sm"
+              className="w-full h-11 box-border pe-10 ps-4 rounded-xl border border-border bg-background focus:border-accent outline-none text-sm"
             />
             {invoiceNumber ? (
               <button
@@ -178,7 +178,7 @@ export default function SalesPage() {
               type="date"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className="h-11 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none w-full"
+              className="h-11 box-border px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none w-full"
               title="من تاريخ"
               dir="ltr"
             />
@@ -186,7 +186,7 @@ export default function SalesPage() {
               type="date"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className="h-11 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none w-full"
+              className="h-11 box-border px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none w-full"
               title="إلى تاريخ"
               dir="ltr"
             />
@@ -196,7 +196,7 @@ export default function SalesPage() {
                 placeholder="الحد الأدنى..."
                 value={minAmountStr}
                 onChange={e => setMinAmountStr(e.target.value)}
-                className="w-full h-11 ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
+                className="w-full h-11 box-border ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
                 min="0"
               />
               <span className="absolute end-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">د.أ</span>
@@ -207,7 +207,7 @@ export default function SalesPage() {
                 placeholder="الحد الأعلى..."
                 value={maxAmountStr}
                 onChange={e => setMaxAmountStr(e.target.value)}
-                className="w-full h-11 ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
+                className="w-full h-11 box-border ps-3 pe-8 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none numeric"
                 min="0"
               />
               <span className="absolute end-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">د.أ</span>
@@ -219,7 +219,7 @@ export default function SalesPage() {
             <select
               value={filterAccountId}
               onChange={e => setFilterAccountId(e.target.value)}
-              className="flex-1 h-11 px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none"
+              className="flex-1 h-11 box-border px-3 text-sm rounded-xl border border-border bg-background focus:border-accent outline-none"
             >
               <option value="">جميع وسائل الدفع</option>
               {accounts.map((acc: any) => (
@@ -229,7 +229,7 @@ export default function SalesPage() {
             {hasFilters && (
               <button
                 onClick={resetFilters}
-                className="h-11 px-3 text-sm bg-muted hover:bg-muted/80 rounded-xl font-medium flex items-center gap-1.5 text-text-secondary whitespace-nowrap border border-border transition-colors"
+                className="h-11 box-border px-3 text-sm bg-muted hover:bg-muted/80 rounded-xl font-medium flex items-center gap-1.5 text-text-secondary whitespace-nowrap border border-border transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 إعادة ضبط

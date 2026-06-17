@@ -138,7 +138,7 @@ export default function MaintenancePage() {
                 placeholder="بحث برقم الوصل، اسم العميل، نوع الجهاز..." 
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                className="w-full h-11 ps-4 pe-10 rounded-xl border border-border bg-background focus:border-accent outline-none"
+                className="w-full h-11 box-border ps-4 pe-10 rounded-xl border border-border bg-background focus:border-accent outline-none"
               />
             </div>
             
