@@ -18,9 +18,8 @@ import { toast } from 'sonner';
 
 type Tab = 'ledger' | 'eod';
 
-const today = format(new Date(), 'yyyy-MM-dd');
-
 export default function OperationsPage() {
+  const today = format(new Date(), 'yyyy-MM-dd');
   const { requireAdminAction } = useAuth();
   const qc = useQueryClient();
 
