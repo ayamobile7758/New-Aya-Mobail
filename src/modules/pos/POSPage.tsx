@@ -49,7 +49,7 @@ export default function POSPage() {
       {/* ── Docked Cart Sidebar — RIGHT side (first in RTL flex), always-mode only ── */}
       {isDocked && (
         <div className="flex w-[300px] md:w-[320px] lg:w-[360px] shrink-0 h-full border-e border-border bg-surface shadow-[4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 flex-col">
-          <CartSidebar onHideCart={() => setCartOpen(false)} />
+          <CartSidebar />
         </div>
       )}
 
@@ -63,30 +63,40 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* ── Floating "open cart" button — bottom-start corner. In an RTL layout
-             `start` is the RIGHT side, so this sits at bottom-right. The admin-exit
-             button uses `end` (left in RTL), so the two never overlap. ── */}
-      {!cartOpen && (
-        <button
-          onClick={() => setCartOpen(true)}
-          className={cn(
-            "absolute bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] start-2 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-20 hover:opacity-90 transition-transform",
-            pulse && "scale-110"
+      {/* ── Floating cart toggle — always visible at the bottom-start corner. In an RTL
+             layout `start` is the RIGHT side, so this sits at bottom-right (where the
+             admin-exit button used to be). One button toggles the cart: a cart icon to
+             open, an X to close. When the cart is docked it would otherwise sit on top of
+             the "complete sale" button, so we lift it above the docked cart's action zone.
+             The admin-exit button uses `end` (left in RTL), so the two never overlap. ── */}
+      <button
+        onClick={() => setCartOpen(o => !o)}
+        className={cn(
+          "absolute start-2 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-transform",
+          isDocked
+            ? "bottom-[calc(env(safe-area-inset-bottom)+150px)]"
+            : "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]",
+          pulse && "scale-110"
+        )}
+        style={{ touchAction: 'manipulation' }}
+        aria-label={cartOpen ? "إخفاء السلة" : "إظهار السلة"}
+        title={cartOpen ? "إخفاء السلة" : "إظهار السلة"}
+      >
+        <div className="relative">
+          {cartOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <>
+              <ShoppingCart className="w-6 h-6" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2.5 -end-2.5 bg-text-primary text-white text-[11px] min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full border-2 border-background">
+                  {totalItems}
+                </span>
+              )}
+            </>
           )}
-          style={{ touchAction: 'manipulation' }}
-          aria-label="إظهار السلة"
-          title="إظهار السلة"
-        >
-          <div className="relative">
-            <ShoppingCart className="w-6 h-6" />
-            {totalItems > 0 && (
-              <span className="absolute -top-2.5 -end-2.5 bg-text-primary text-white text-[11px] min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full border-2 border-background">
-                {totalItems}
-              </span>
-            )}
-          </div>
-        </button>
-      )}
+        </div>
+      </button>
 
       {/* ── Cart Overlay — full-screen on phones, sliding side panel on wider screens ── */}
       {isOverlayOpen && (

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney } from '@/lib/money';
-import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift, PanelRightClose } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
 import { toast } from 'sonner';
@@ -291,7 +291,7 @@ function GlobalDiscountAmountDialog({
 }
 
 // ─── Main CartSidebar ──────────────────────────────────────────────────────────
-export function CartSidebar({ onHideCart }: { onHideCart?: () => void } = {}) {
+export function CartSidebar() {
   const {
     items, removeItem, updateQuantity, clearCart,
     getSubtotal, getTotalDiscount, getTotal,
@@ -544,17 +544,6 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void } = {}) {
             {/* Subtotal & Discount compact row */}
             <div className="flex justify-between items-center text-xs text-text-secondary px-0.5">
               <div className="flex items-center gap-1.5">
-                {onHideCart && (
-                  <button
-                    onClick={onHideCart}
-                    className="flex items-center justify-center w-7 h-7 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors shrink-0"
-                    style={{ touchAction: 'manipulation' }}
-                    aria-label="إخفاء السلة"
-                    title="إخفاء السلة"
-                  >
-                    <PanelRightClose className="w-4 h-4" />
-                  </button>
-                )}
                 <span style={{ fontFamily: 'Tajawal, sans-serif' }}>المجموع الفرعي:</span>
                 <span className="numeric font-semibold">{formatMoney(getSubtotal())}</span>
               </div>
