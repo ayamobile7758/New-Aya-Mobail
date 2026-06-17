@@ -16,6 +16,8 @@ export function setupRealtimeSync(queryClient: QueryClient) {
     day_closures: ['day-status', 'day-status-row', 'day-closures-history', 'daily-summary'],
     ledger_entries: ['ledger-entries', 'ledger-period'],
     topups: ['report', 'pnl', 'daily-summary'],
+    transfers: ['ledger-entries', 'ledger-period', 'active-accounts'],
+    inventory_count_items: ['inventory-counts'],
     sequences: [], 
     audit_log: ['audit_log', 'audit_actions', 'audit_devices'],
   };
