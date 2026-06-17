@@ -140,7 +140,12 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts]);
 
-  useEscKey(onClose, isOpen);
+  const handleClose = () => {
+    if (checkoutMutation.isPending) return;
+    onClose();
+  };
+
+  useEscKey(handleClose, isOpen);
 
   // ── Advanced section derived state ───────────────────────────────────────────
   const parsedPayments = payments.map(p => ({
@@ -244,7 +249,7 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
   return (
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div
         ref={dialogRef}
