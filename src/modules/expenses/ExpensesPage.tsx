@@ -166,7 +166,7 @@ export default function ExpensesPage() {
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 w-full md:w-auto">
+          <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto bg-muted p-1 px-3 rounded-xl border border-border h-11">
               <Calendar className="w-4 h-4 text-text-secondary" />
               <input 
@@ -188,21 +188,21 @@ export default function ExpensesPage() {
               <button 
                 onClick={handleExportCSV}
                 disabled={expenses.length === 0}
-                className="bg-muted text-text-primary px-3 h-11 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm disabled:opacity-50 flex-1 sm:flex-none"
+                className="bg-muted text-text-primary px-3 h-11 box-border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm disabled:opacity-50 flex-1 sm:flex-none"
                 title="تصدير CSV"
               >
                 <Download className="w-5 h-5"/>
               </button>
               <button 
                 onClick={() => setIsCategoriesOpen(true)}
-                className="bg-muted text-text-primary px-3 h-11 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm flex-1 sm:flex-none"
+                className="bg-muted text-text-primary px-3 h-11 box-border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm flex-1 sm:flex-none"
                 title="إعدادات الحسابات والفئات"
               >
                 <Settings className="w-5 h-5"/>
               </button>
               <button 
                 onClick={() => setIsAddMode(!isAddMode)}
-                className="bg-accent text-white px-4 h-11 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm flex-1 sm:flex-none whitespace-nowrap"
+                className="bg-accent text-white px-4 h-11 box-border rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm flex-1 sm:flex-none whitespace-nowrap"
               >
                 {isAddMode ? 'إلغاء' : <><Plus className="w-5 h-5"/> <span className="hidden sm:inline">تسجيل مصروف</span></>}
               </button>
