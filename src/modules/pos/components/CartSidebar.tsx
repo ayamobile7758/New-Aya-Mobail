@@ -687,7 +687,7 @@ export function CartSidebar() {
         invoiceId={successData.invoiceId}
         invoiceNumber={successData.invoiceNumber}
         change={successData.change}
-        onClose={() => setSuccessData({ ...successData, isOpen: false })}
+        onClose={() => { clearCart(); setSuccessData({ ...successData, isOpen: false }); }}
         onNewSale={() => { setSuccessData({ ...successData, isOpen: false }); clearCart(); }}
       />
 
