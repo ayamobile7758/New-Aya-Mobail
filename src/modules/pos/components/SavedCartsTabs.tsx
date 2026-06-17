@@ -54,7 +54,7 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
               className="h-8 min-w-[90px] px-2.5 flex items-center justify-center rounded-t-lg bg-surface border-border border-t border-x cursor-pointer shrink-0"
               onClick={() => {}}
             >
-              <span className={cn("text-xs font-medium", "text-[#CF694A]")}>الحالية</span>
+              <span className={cn("text-xs font-medium", "text-accent")}>الحالية</span>
               {items.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-danger ms-1.5" />}
             </div>
           )}
@@ -67,8 +67,8 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
                 className={cn(
                   "h-8 min-w-[90px] px-2.5 flex items-center justify-between rounded-t-lg cursor-pointer transition-colors shrink-0",
                   isActive 
-                    ? "bg-white border-b-2 border-b-[#CF694A] text-text" 
-                    : "bg-[#F3F1EC] text-[#6D6A62]"
+                    ? "bg-white border-b-2 border-b-accent text-text" 
+                    : "bg-muted text-text-secondary"
                 )}
               >
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -80,7 +80,7 @@ export function SavedCartsTabs({ itemCount, onClearCart, pulse }: SavedCartsTabs
                     e.stopPropagation();
                     setCartToDelete(cart.id);
                   }}
-                  className="p-0.5 hover:bg-black/10 rounded-full transition-colors ms-1 shrink-0 text-[#6D6A62] hover:text-danger"
+                  className="p-2.5 -m-2 hover:bg-black/10 rounded-full transition-colors ms-1 shrink-0 text-text-secondary hover:text-danger"
                   title="إلغاء السلة"
                   aria-label="إلغاء السلة"
                   style={{ touchAction: 'manipulation' }}
