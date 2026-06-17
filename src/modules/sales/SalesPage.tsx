@@ -115,9 +115,8 @@ export default function SalesPage() {
 
   const openReturnDialog = (invoice: any) => {
     setSelectedInvoice(invoice);
-    if (accounts.length > 0) {
-      setRefunds([{ accountId: accounts[0].id, amountInput: (invoice.paid_amount / 100).toString() }]);
-    }
+    const defaultAccountId = invoice.payments?.[0]?.account_id || accounts[0]?.id || '';
+    setRefunds([{ accountId: defaultAccountId, amountInput: (invoice.paid_amount / 100).toString() }]);
     setReturnDialogOpen(true);
   };
 
