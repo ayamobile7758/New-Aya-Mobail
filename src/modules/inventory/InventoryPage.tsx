@@ -31,7 +31,7 @@ export default function InventoryPage() {
               onClick={() => setActiveTab('new_count')}
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
-                activeTab === 'new_count' ? "bg-surface text-accent shadow-sm" : "text-text-secondary hover:text-text-primary"
+                activeTab === 'new_count' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
               )}
             >
               <PackageSearch className="w-4 h-4" />
@@ -41,7 +41,7 @@ export default function InventoryPage() {
               onClick={() => setActiveTab('history')}
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
-                activeTab === 'history' ? "bg-surface text-accent shadow-sm" : "text-text-secondary hover:text-text-primary"
+                activeTab === 'history' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
               )}
             >
               <History className="w-4 h-4" />
@@ -51,7 +51,7 @@ export default function InventoryPage() {
               onClick={() => setActiveTab('reconciliation')}
               className={cn(
                 "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
-                activeTab === 'reconciliation' ? "bg-surface text-accent shadow-sm" : "text-text-secondary hover:text-text-primary"
+                activeTab === 'reconciliation' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
               )}
             >
               <Scale className="w-4 h-4" />

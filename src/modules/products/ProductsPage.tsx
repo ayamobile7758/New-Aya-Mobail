@@ -84,8 +84,8 @@ export default function ProductsPage() {
                   className={cn(
                     "px-4 h-11 rounded-xl whitespace-nowrap font-medium transition-colors cursor-pointer border shadow-sm shrink-0",
                     category === c.id 
-                      ? "bg-text-primary text-white border-transparent" 
-                      : "bg-surface border-border text-text-secondary hover:border-accent"
+                      ? "bg-accent text-white border-transparent" 
+                      : "bg-muted border-transparent text-text-secondary hover:border-accent"
                   )}
                 >
                   {c.name}
