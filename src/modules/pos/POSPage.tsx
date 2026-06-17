@@ -63,14 +63,14 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* ── Floating "open cart" button — bottom-end circle with a cart icon.
-             Always at bottom-end (right in RTL); the admin-exit button lives at
-             bottom-start (left), so the two never overlap on any device. ── */}
+      {/* ── Floating "open cart" button — bottom-start corner. In an RTL layout
+             `start` is the RIGHT side, so this sits at bottom-right. The admin-exit
+             button uses `end` (left in RTL), so the two never overlap. ── */}
       {!cartOpen && (
         <button
           onClick={() => setCartOpen(true)}
           className={cn(
-            "absolute bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] end-2 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-20 hover:opacity-90 transition-transform",
+            "absolute bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] start-2 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-20 hover:opacity-90 transition-transform",
             pulse && "scale-110"
           )}
           style={{ touchAction: 'manipulation' }}
