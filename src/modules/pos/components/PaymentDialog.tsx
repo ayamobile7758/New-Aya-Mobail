@@ -256,7 +256,7 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
         role="dialog"
         aria-modal="true"
         aria-label="تسجيل البيع"
-        className="bg-surface w-full max-w-md rounded-[24px] md:rounded-2xl shadow-md animate-in slide-in-from-bottom-4 md:zoom-in-95 flex flex-col max-h-[92vh]"
+        className="bg-surface w-full max-w-md rounded-[24px] md:rounded-2xl shadow-md animate-in slide-in-from-bottom-4 md:zoom-in-95 flex flex-col max-h-[85vh]"
       >
         {/* Header */}
         <div className="flex justify-between items-center p-5 pb-3 shrink-0">
