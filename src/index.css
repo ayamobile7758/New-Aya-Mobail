@@ -102,5 +102,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .admin-mode-line { animation: none; }
+  .animate-float-up,
+  .animate-spin,
+  [class*="animate-in"] { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }
 
