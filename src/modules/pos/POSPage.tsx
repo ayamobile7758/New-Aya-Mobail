@@ -64,7 +64,8 @@ export default function POSPage() {
       </div>
 
       {/* ── Floating "open cart" button — bottom-end circle with a cart icon.
-             Shown whenever the cart is closed so the user can open it on demand. ── */}
+             Always at bottom-end (right in RTL); the admin-exit button lives at
+             bottom-start (left), so the two never overlap on any device. ── */}
       {!cartOpen && (
         <button
           onClick={() => setCartOpen(true)}
