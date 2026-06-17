@@ -12,7 +12,7 @@ export function AddToHomeScreen() {
       ('standalone' in navigator && (navigator as any).standalone === true);
     setIsStandalone(checkStandalone());
 
-    if (sessionStorage.getItem('AddToHomeScreenDismissed')) {
+    if (localStorage.getItem('AddToHomeScreenDismissed')) {
       setDismissed(true);
     }
   }, []);
@@ -22,19 +22,17 @@ export function AddToHomeScreen() {
   }
 
   const handleDismiss = () => {
-    sessionStorage.setItem('AddToHomeScreenDismissed', 'true');
+    localStorage.setItem('AddToHomeScreenDismissed', 'true');
     setDismissed(true);
   };
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-[100] px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
-      style={{ pointerEvents: 'none' }}
+      className="fixed bottom-0 inset-x-0 z-[100] px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pointer-events-none"
     >
       <div
-        className="max-w-md mx-auto rounded-2xl shadow-lg border overflow-hidden"
+        className="max-w-md mx-auto rounded-2xl shadow-lg border overflow-hidden pointer-events-auto"
         style={{
-          pointerEvents: 'auto',
           background: '#1a1a1a',
           borderColor: 'rgba(207,105,74,0.3)',
           fontFamily: 'Tajawal, sans-serif',
