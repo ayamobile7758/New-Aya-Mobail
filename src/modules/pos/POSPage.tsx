@@ -70,7 +70,7 @@ export default function POSPage() {
         <button
           onClick={() => setCartOpen(true)}
           className={cn(
-            "absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] end-3 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-20 hover:opacity-90 transition-transform",
+            "absolute bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] end-2 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-20 hover:opacity-90 transition-transform",
             pulse && "scale-110"
           )}
           style={{ touchAction: 'manipulation' }}
