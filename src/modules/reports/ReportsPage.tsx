@@ -70,6 +70,7 @@ export default function ReportsPage() {
   const [customFrom, setCustomFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customTo, setCustomTo] = useState(todayStr());
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   const { from, to } = periodDates(period, customFrom, customTo);
 
@@ -314,8 +315,8 @@ export default function ReportsPage() {
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className="flex overflow-x-auto no-scrollbar gap-1 border-b border-border -mx-4 px-4">
+          {/* Desktop/Tablet Tabs — Show all 7 */}
+          <div className="hidden md:flex overflow-x-auto no-scrollbar gap-1 border-b border-border -mx-4 px-4">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -334,6 +335,76 @@ export default function ReportsPage() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Mobile Tabs — Show 4 + More Dropdown */}
+          <div className="md:hidden flex relative overflow-visible border-b border-border -mx-4 px-4 justify-between items-center bg-surface">
+            <div className="flex gap-1 overflow-visible">
+              {tabs.slice(0, 4).map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px' }}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors shrink-0',
+                      isActive ? 'border-accent text-accent' : 'border-transparent text-text-secondary'
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* More Menu */}
+            <div className="relative overflow-visible shrink-0">
+              <button
+                onClick={() => setIsMoreOpen(o => !o)}
+                style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px' }}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors',
+                  ['expenses', 'discounts', 'pnl'].includes(activeTab)
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-text-secondary'
+                )}
+              >
+                <span>المزيد</span>
+                <span className="text-[9px]">▼</span>
+              </button>
+
+              {isMoreOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsMoreOpen(false)} />
+                  <div className="absolute end-0 mt-1 w-44 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                    {tabs.slice(4).map(tab => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            setActiveTab(tab.id);
+                            setIsMoreOpen(false);
+                          }}
+                          style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}
+                          className={cn(
+                            'w-full flex items-center gap-2 px-4 py-2.5 text-start font-medium transition-colors hover:bg-muted/50',
+                            isActive ? 'text-accent bg-accent/5' : 'text-text-secondary'
+                          )}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
