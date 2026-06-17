@@ -12,8 +12,12 @@ export function AddToHomeScreen() {
       ('standalone' in navigator && (navigator as any).standalone === true);
     setIsStandalone(checkStandalone());
 
-    if (localStorage.getItem('AddToHomeScreenDismissed')) {
-      setDismissed(true);
+    const dismissedUntil = localStorage.getItem('a2hs_dismissed_until');
+    if (dismissedUntil) {
+      const parsed = parseInt(dismissedUntil, 10);
+      if (!isNaN(parsed) && parsed > Date.now()) {
+        setDismissed(true);
+      }
     }
   }, []);
 
@@ -22,7 +26,7 @@ export function AddToHomeScreen() {
   }
 
   const handleDismiss = () => {
-    localStorage.setItem('AddToHomeScreenDismissed', 'true');
+    localStorage.setItem('a2hs_dismissed_until', String(Date.now() + 30 * 24 * 60 * 60 * 1000));
     setDismissed(true);
   };
 
