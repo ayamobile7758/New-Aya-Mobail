@@ -79,7 +79,7 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     `SELECT COALESCE(SUM(ii.unit_cost * ii.quantity), 0) AS cogs
      FROM invoice_items ii
      JOIN invoices i ON ii.invoice_id = i.id
-     WHERE i.invoice_date = ? AND i.status IN ('active', 'partially_returned') AND ii.is_gift = 0`,
+     WHERE i.invoice_date = ? AND i.status IN ('active', 'partially_returned')`,
     [targetDate]
   );
 
@@ -95,15 +95,13 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     [targetDate]
   );
 
-  // ME-A (unchanged): returns_adjustment = total_amount - paid_amount for
-  // returned/partially_returned invoices.
-  // For full returns: paid_amount=0, so this reads total_amount (the full refund).
-  // For partial returns: paid_amount = remaining, so this reads the refund amount.
+  // ME-A: partial_returns_total = total_amount - paid_amount for
+  // partially_returned invoices.
   // C-5: this value IS now subtracted from net_profit (see formula below).
   const [returnsRow] = await dbClient.query(
     `SELECT COALESCE(SUM(total_amount - paid_amount), 0) AS returns_adjustment
      FROM invoices
-     WHERE invoice_date = ? AND status IN ('returned', 'partially_returned')`,
+     WHERE invoice_date = ? AND status = 'partially_returned'`,
     [targetDate]
   );
 
@@ -129,7 +127,7 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
   const discounts_total      = Number(salesRow?.discounts          ?? 0);
   const cogs_total           = Number(cogsRow?.cogs                ?? 0);
   const gifts_value          = Number(giftsRow?.gifts              ?? 0);
-  const returns_total        = Number(returnsRow?.returns_adjustment ?? 0);
+  const partial_returns_total = Number(returnsRow?.returns_adjustment ?? 0);
   const expenses_total       = Number(expRow?.expenses             ?? 0);
   const topup_profit         = Number(topupRow?.topup_profit       ?? 0);
   const maintenance_revenue  = Number(mainRow?.maintenance_revenue ?? 0);
@@ -144,12 +142,13 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
   // returns_total in the query but not in the formula. The old comment was misleading.)
   //
   // New formula: sales_total includes 'partially_returned', so we MUST subtract
-  // returns_total (which captures both full refunds and partial refunds) to get net.
+  // partial_returns_total (which captures partial refunds) to get net.
+  // Full returns are already excluded from sales_total by status filter.
   // No payment-fee term (C-2 decision).
   const net_profit =
       sales_total
     - cogs_total
-    - returns_total
+    - partial_returns_total
     + topup_profit
     + maintenance_revenue
     - expenses_total;
@@ -160,7 +159,7 @@ export async function getOpenDayPreview(targetDate: string): Promise<DayClosureS
     cogs_total,
     discounts_total,
     gifts_value,
-    returns_total,
+    returns_total: partial_returns_total,
     expenses_total,
     topup_profit,
     maintenance_revenue,
