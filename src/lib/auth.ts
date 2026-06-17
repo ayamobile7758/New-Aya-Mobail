@@ -144,7 +144,7 @@ export async function isDailyLockEnabled(): Promise<boolean> {
 export async function setDailyLockEnabled(enabled: boolean, currentAdminPin: string): Promise<void> {
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
-    throw new Error('Admin PIN incorrect');
+    throw new Error('رمز المشرف غير صحيح');
   }
 
   const daily = await readSetting('daily_lock');
@@ -194,7 +194,7 @@ export async function changeDailyLock(newCode: string, currentAdminPin: string) 
   // First verify admin pin
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
-    throw new Error('Admin PIN incorrect');
+    throw new Error('رمز المشرف غير صحيح');
   }
 
   // Cross-PIN uniqueness checks
@@ -221,7 +221,7 @@ export async function changeAdminPin(currentPin: string, newPin: string) {
 
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentPin, storedAdmin))) {
-    throw new Error('Admin PIN incorrect');
+    throw new Error('رمز المشرف غير صحيح');
   }
 
   // Cross-PIN uniqueness checks
@@ -248,7 +248,7 @@ export async function isMaintenanceEnabled(): Promise<boolean> {
 export async function setMaintenanceEnabled(enabled: boolean, currentAdminPin: string): Promise<void> {
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
-    throw new Error('Admin PIN incorrect');
+    throw new Error('رمز المشرف غير صحيح');
   }
 
   const maint = await readSetting('maintenance_pin');
@@ -268,7 +268,7 @@ export async function changeMaintenancePin(newCode: string, currentAdminPin: str
 
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
-    throw new Error('Admin PIN incorrect');
+    throw new Error('رمز المشرف غير صحيح');
   }
 
   // Cross-PIN uniqueness checks
@@ -374,7 +374,7 @@ export async function getLockoutSecondsRemaining(level: 'daily' | 'admin' | 'mai
 export async function setAdminRecovery(question: string, answer: string, currentAdminPin: string): Promise<void> {
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
-    throw new Error('Admin PIN incorrect');
+    throw new Error('رمز المشرف غير صحيح');
   }
 
   const normalized = answer.trim().toLowerCase();

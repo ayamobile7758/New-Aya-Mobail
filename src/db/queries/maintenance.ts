@@ -139,7 +139,7 @@ export async function updateJobStatus(
   // ── Branch 1: deliver (status === 'delivered') ─────────────────────────────
   if (status === 'delivered') {
     if (final_amount === undefined || !payment_account_id) {
-      throw new Error('Final amount and account are required for delivery');
+      throw new Error('المبلغ النهائي والحساب مطلوبان للتسليم');
     }
 
     // منع التسليم المزدوج — keep the existing guard intact.
