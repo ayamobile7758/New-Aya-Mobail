@@ -179,9 +179,13 @@ export default function MaintenancePage() {
           {isLoading ? (
             <div className="p-12 text-center"><div className="animate-spin w-8 h-8 mx-auto border-4 border-accent/30 border-t-accent rounded-full"></div></div>
           ) : jobs.length === 0 ? (
-            <div className="text-center p-12 bg-surface rounded-2xl border border-border">
-              <Wrench className="w-12 h-12 text-text-secondary mx-auto mb-4 opacity-50" />
-              <p className="text-secondary font-medium">لا توجد أجهزة صيانة تطابق بحثك.</p>
+            <div className="flex flex-col items-center justify-center py-12 text-center bg-surface rounded-2xl border border-border">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                <Wrench className="w-12 h-12 text-text-secondary/40" />
+              </div>
+              <p className="text-text-secondary font-medium" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                لا توجد أجهزة صيانة تطابق بحثك.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

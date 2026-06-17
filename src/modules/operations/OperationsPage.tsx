@@ -284,8 +284,13 @@ export default function OperationsPage() {
                     <div className="animate-spin w-8 h-8 mx-auto border-4 border-accent/30 border-t-accent rounded-full" />
                   </div>
                 ) : entries.length === 0 ? (
-                  <div className="p-12 text-center text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                    لا توجد حركات مالية في هذه الفترة.
+                  <div className="flex flex-col items-center justify-center py-12 text-center bg-surface rounded-2xl border border-border m-4">
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                      <ArrowRightLeft className="w-12 h-12 text-text-secondary/40" />
+                    </div>
+                    <p className="text-text-secondary font-medium" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                      لا توجد حركات مالية في هذه الفترة.
+                    </p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
