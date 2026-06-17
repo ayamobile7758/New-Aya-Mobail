@@ -88,6 +88,22 @@ function haptic() {
   } catch (_) {}
 }
 
+const customLocalStorage = {
+  getItem: (name: string) => {
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch (err) {
+      console.warn('فشل حفظ السلة محلياً', err);
+    }
+  },
+  removeItem: (name: string) => {
+    localStorage.removeItem(name);
+  },
+};
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -263,7 +279,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'active_cart',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => customLocalStorage),
       // LO-E: localStorage quota risk is accepted for single-shop deployment.
       // Cart size is bounded by typical retail sessions (< 50 items).
       // If a quota error occurs, Zustand will fail silently and the cart will
