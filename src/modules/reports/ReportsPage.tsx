@@ -218,15 +218,15 @@ export default function ReportsPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => refetch()}
-                className="p-2 text-text-secondary hover:bg-muted rounded-lg transition-colors"
+                className="p-2.5 text-text-secondary hover:bg-muted rounded-lg transition-colors"
                 title="تحديث"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-5 h-5" />
               </button>
               <button
                 onClick={handleExportExcel}
                 disabled={!report || isLoading}
-                className="h-9 px-3 bg-success text-white font-bold text-sm rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                className="h-11 box-border px-3 bg-success text-white font-bold text-sm rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
                 style={{ fontFamily: 'Tajawal, sans-serif' }}
               >
                 <Download className="w-4 h-4" />
