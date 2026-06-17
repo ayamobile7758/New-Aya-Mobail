@@ -187,10 +187,23 @@ export async function markUnlocked() {
 }
 
 export async function changeDailyLock(newCode: string, currentAdminPin: string) {
+  if (newCode === '0000') {
+    throw new Error('لا يمكن استخدام الرمز الافتراضي، اختر رمزاً جديداً');
+  }
+
   // First verify admin pin
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
     throw new Error('Admin PIN incorrect');
+  }
+
+  // Cross-PIN uniqueness checks
+  if (await verifyCode(newCode, storedAdmin)) {
+    throw new Error('لا يمكن أن يطابق الرمز رمزاً آخر مستخدماً');
+  }
+  const storedMaint = await readSetting('maintenance_pin');
+  if (storedMaint && (await verifyCode(newCode, storedMaint))) {
+    throw new Error('لا يمكن أن يطابق الرمز رمزاً آخر مستخدماً');
   }
 
   const currentDaily = await readSetting('daily_lock');
@@ -202,9 +215,23 @@ export async function changeDailyLock(newCode: string, currentAdminPin: string) 
 }
 
 export async function changeAdminPin(currentPin: string, newPin: string) {
+  if (newPin === '1234' || newPin === '0000') {
+    throw new Error('لا يمكن استخدام الرمز الافتراضي، اختر رمزاً جديداً');
+  }
+
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentPin, storedAdmin))) {
     throw new Error('Admin PIN incorrect');
+  }
+
+  // Cross-PIN uniqueness checks
+  const storedDaily = await readSetting('daily_lock');
+  if (storedDaily && (await verifyCode(newPin, storedDaily))) {
+    throw new Error('لا يمكن أن يطابق الرمز رمزاً آخر مستخدماً');
+  }
+  const storedMaint = await readSetting('maintenance_pin');
+  if (storedMaint && (await verifyCode(newPin, storedMaint))) {
+    throw new Error('لا يمكن أن يطابق الرمز رمزاً آخر مستخدماً');
   }
 
   const codeData = await hashCode(newPin);
@@ -235,9 +262,22 @@ export async function setMaintenanceEnabled(enabled: boolean, currentAdminPin: s
 }
 
 export async function changeMaintenancePin(newCode: string, currentAdminPin: string) {
+  if (newCode === '0000') {
+    throw new Error('لا يمكن استخدام الرمز الافتراضي، اختر رمزاً جديداً');
+  }
+
   const storedAdmin = await readSetting('admin_pin');
   if (!storedAdmin || !(await verifyCode(currentAdminPin, storedAdmin))) {
     throw new Error('Admin PIN incorrect');
+  }
+
+  // Cross-PIN uniqueness checks
+  if (await verifyCode(newCode, storedAdmin)) {
+    throw new Error('لا يمكن أن يطابق الرمز رمزاً آخر مستخدماً');
+  }
+  const storedDaily = await readSetting('daily_lock');
+  if (storedDaily && (await verifyCode(newCode, storedDaily))) {
+    throw new Error('لا يمكن أن يطابق الرمز رمزاً آخر مستخدماً');
   }
 
   const currentMaint = await readSetting('maintenance_pin');
