@@ -72,7 +72,7 @@ export default function POSPage() {
       <button
         onClick={() => setCartOpen(o => !o)}
         className={cn(
-          "absolute start-2 w-14 h-14 bg-[#CF694A] text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-transform",
+          "absolute start-2 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-transform",
           isDocked
             ? "bottom-[calc(env(safe-area-inset-bottom)+150px)]"
             : "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]",

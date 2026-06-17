@@ -448,7 +448,7 @@ function ProductCard({
       >
         {floatPluses.map(fp => (
           <span key={fp.id} aria-hidden="true"
-            className="absolute z-10 text-[#CF694A] font-bold text-base pointer-events-none animate-float-up"
+            className="absolute z-10 text-accent font-bold text-base pointer-events-none animate-float-up"
             style={{ insetInlineStart: fp.x, top: fp.y, fontFamily: 'Inter' }}
           >+1</span>
         ))}
@@ -485,7 +485,7 @@ function ProductCard({
       >
         {floatPluses.map(fp => (
           <span key={fp.id} aria-hidden="true"
-            className="absolute z-10 text-[#CF694A] font-bold text-lg pointer-events-none animate-float-up"
+            className="absolute z-10 text-accent font-bold text-lg pointer-events-none animate-float-up"
             style={{ insetInlineStart: fp.x, top: fp.y, fontFamily: 'Inter' }}
           >+1</span>
         ))}
@@ -531,7 +531,7 @@ function ProductCard({
     >
       {floatPluses.map(fp => (
         <span key={fp.id} aria-hidden="true"
-          className="absolute z-10 text-[#CF694A] font-bold text-xl pointer-events-none animate-float-up"
+          className="absolute z-10 text-accent font-bold text-xl pointer-events-none animate-float-up"
           style={{ left: fp.x, top: fp.y, fontFamily: 'Inter' }}
         >+1</span>
       ))}
