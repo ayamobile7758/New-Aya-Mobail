@@ -81,7 +81,7 @@ export function Shell() {
             onClick={exitAdmin}
             aria-label="خروج من وضع المدير"
             title="خروج من وضع المدير"
-            className="fixed end-3 bottom-[calc(env(safe-area-inset-bottom,0px)+60px+0.75rem)] md:bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-[60] w-10 h-10 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg flex items-center justify-center transition-colors border-0 outline-none"
+            className="fixed end-3 bottom-[calc(env(safe-area-inset-bottom,0px)+60px+0.75rem)] md:bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-[60] w-10 h-10 rounded-full bg-danger hover:opacity-90 text-white shadow-lg flex items-center justify-center transition-colors border-0 outline-none"
           >
             <LogOut className="w-5 h-5 shrink-0" />
           </button>
