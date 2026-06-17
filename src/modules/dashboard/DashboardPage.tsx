@@ -11,10 +11,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { format, parseISO, startOfWeek, startOfMonth } from 'date-fns';
 
-const todayStr = format(new Date(), 'yyyy-MM-dd');
-const weekStartStr = format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd');
-const monthStartStr = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-
 const TYPE_LABELS: Record<string, string> = {
   cash: 'نقداً',
   bank: 'بنوك',
@@ -31,6 +27,10 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const weekStartStr = format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd');
+  const monthStartStr = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+
   const { data: summary } = useQuery({
     queryKey: ['daily-summary', ''],
     queryFn: () => getDailySummary()
