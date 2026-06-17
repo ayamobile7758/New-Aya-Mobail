@@ -483,29 +483,48 @@ export function CartSidebar() {
                       </span>
                     </div>
 
-                    {/* Discount box — tappable */}
-                    <button
-                      disabled={item.isGift}
-                      onClick={() => setDiscountEditId(item.cartItemId)}
-                      style={{
-                        flex: '1', minWidth: 0,
-                        background: item.discountValue > 0 ? '#FEF2F2' : 'var(--color-surface, white)',
-                        border: `1px solid ${item.discountValue > 0 ? '#FECACA' : 'var(--color-border)'}`,
-                        borderRadius: '7px',
-                        padding: '3px 6px',
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        cursor: item.isGift ? 'not-allowed' : 'pointer',
-                        opacity: item.isGift ? 0.4 : 1,
-                        touchAction: 'manipulation',
-                      }}
-                      aria-label="تعديل الخصم"
-                    >
-                      <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>خصم</span>
-                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 600, color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>
-                        {item.discountValue > 0 ? `− ${formatMoney(item.discountValue)}` : '—'}
-                      </span>
-                    </button>
+                    {item.isGift ? (
+                      <div
+                        style={{
+                          flex: '1', minWidth: 0,
+                          background: '#DCFCE7',
+                          border: '1px solid #86EFAC',
+                          borderRadius: '7px',
+                          padding: '3px 6px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: '#16A34A' }}>خصم</span>
+                        <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px', fontWeight: 700, color: '#16A34A' }}>
+                          هدية
+                        </span>
+                      </div>
+                    ) : (
+                      /* Discount box — tappable */
+                      <button
+                        onClick={() => setDiscountEditId(item.cartItemId)}
+                        style={{
+                          flex: '1', minWidth: 0,
+                          background: item.discountValue > 0 ? '#FEF2F2' : 'var(--color-surface, white)',
+                          border: `1px solid ${item.discountValue > 0 ? '#FECACA' : 'var(--color-border)'}`,
+                          borderRadius: '7px',
+                          padding: '3px 6px',
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          cursor: 'pointer',
+                          touchAction: 'manipulation',
+                        }}
+                        aria-label="تعديل الخصم"
+                      >
+                        <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>خصم</span>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 600, color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>
+                          {item.discountValue > 0 ? `− ${formatMoney(item.discountValue)}` : '—'}
+                        </span>
+                      </button>
+                    )}
 
                     {/* Gift toggle */}
                     <button
@@ -578,6 +597,11 @@ export function CartSidebar() {
             </div>
 
             {/* Action bar — qty and price only */}
+            {!selectedItemId && (
+              <p className="text-[11px] text-text-secondary text-center mb-1.5" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                اختر منتجاً من السلة لتعديل الكمية أو السعر
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-1.5">
               {(
                 [
@@ -608,7 +632,7 @@ export function CartSidebar() {
               onClick={() => { if (items.length > 0) setIsPaymentOpen(true); }}
               disabled={items.length === 0}
               style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation' }}
-              className="w-full bg-[#CF694A] text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
+              className="w-full bg-accent text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
             >
               <span>إتمام البيع</span>
               {items.length > 0 && (
