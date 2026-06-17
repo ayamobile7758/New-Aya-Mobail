@@ -288,11 +288,13 @@ export async function changeMaintenancePin(newCode: string, currentAdminPin: str
   await logAudit('تغيير_رمز_صيانة', 'تم تغيير رمز الصيانة');
 }
 
-function lockoutKey(level: 'daily' | 'admin'): string {
-  return level === 'daily' ? 'pin_lockout_daily' : 'pin_lockout_admin';
+function lockoutKey(level: 'daily' | 'admin' | 'maintenance'): string {
+  if (level === 'daily') return 'pin_lockout_daily';
+  if (level === 'admin') return 'pin_lockout_admin';
+  return 'pin_lockout_maintenance';
 }
 
-export async function getCombinedLockout(level: 'daily' | 'admin'): Promise<{ attempts: number; lockedUntil: number } | null> {
+export async function getCombinedLockout(level: 'daily' | 'admin' | 'maintenance'): Promise<{ attempts: number; lockedUntil: number } | null> {
   const key = lockoutKey(level);
   const localData = await get(key);
   let cloudData = null;
@@ -316,7 +318,7 @@ export async function getCombinedLockout(level: 'daily' | 'admin'): Promise<{ at
   return { attempts, lockedUntil };
 }
 
-export async function recordFailedAttempt(level: 'daily' | 'admin') {
+export async function recordFailedAttempt(level: 'daily' | 'admin' | 'maintenance') {
   const key = lockoutKey(level);
   
   // Read both local and cloud
@@ -357,13 +359,13 @@ export async function recordFailedAttempt(level: 'daily' | 'admin') {
   }
 }
 
-export async function isLocked(level: 'daily' | 'admin'): Promise<boolean> {
+export async function isLocked(level: 'daily' | 'admin' | 'maintenance'): Promise<boolean> {
   const lockData = await getCombinedLockout(level);
   if (!lockData) return false;
   return Date.now() < lockData.lockedUntil;
 }
 
-export async function getLockoutSecondsRemaining(level: 'daily' | 'admin'): Promise<number> {
+export async function getLockoutSecondsRemaining(level: 'daily' | 'admin' | 'maintenance'): Promise<number> {
   const lockData = await getCombinedLockout(level);
   if (!lockData) return 0;
   return Math.max(0, Math.ceil((lockData.lockedUntil - Date.now()) / 1000));

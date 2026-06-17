@@ -27,7 +27,7 @@ export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, descri
       return;
     }
     const checkLockout = async () => {
-      const remaining = await getLockoutSecondsRemaining('daily');
+      const remaining = await getLockoutSecondsRemaining('maintenance');
       setLockoutSecs(remaining);
     };
     checkLockout();
@@ -47,10 +47,10 @@ export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, descri
       toastSuccess("تم الدخول لوضع الصيانة");
       setPin('');
     } else {
-      await recordFailedAttempt('daily');
+      await recordFailedAttempt('maintenance');
       setPin('');
       toastError("الرمز غير صحيح");
-      const remaining = await getLockoutSecondsRemaining('daily');
+      const remaining = await getLockoutSecondsRemaining('maintenance');
       setLockoutSecs(remaining);
     }
   };
