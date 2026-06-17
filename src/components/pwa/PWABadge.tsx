@@ -2,14 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Download, X } from 'lucide-react';
-import { useCartStore } from '@/stores/cart.store';
-import { toast } from 'sonner';
 
 export function PWABadge() {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
+  // registerType is 'autoUpdate': the new service worker installs in the background and
+  // takes over on the next app open, so there is no manual "update available" prompt.
+  // We still register here to keep the SW lifecycle wired up.
+  useRegisterSW({
     onRegistered(r) {
       console.log('SW Registered: ' + r);
     },
@@ -18,32 +16,7 @@ export function PWABadge() {
     },
   });
 
-  const cart = useCartStore(state => state.items);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    if (needRefresh) {
-      if (cart.length > 0) {
-        toast('تحديث متوفر — أتمم البيع الحالي ثم اضغط هنا للتحديث', {
-          duration: Infinity,
-          action: {
-            label: 'تحديث',
-            onClick: () => updateServiceWorker(true)
-          },
-          onDismiss: () => setNeedRefresh(false)
-        });
-      } else {
-        toast('تحديث متوفر — اضغط للتحديث', {
-          duration: Infinity,
-          action: {
-            label: 'تحديث',
-            onClick: () => updateServiceWorker(true)
-          },
-          onDismiss: () => setNeedRefresh(false)
-        });
-      }
-    }
-  }, [needRefresh]);
 
   // A2HS (Add to Home Screen) install prompt
   useEffect(() => {

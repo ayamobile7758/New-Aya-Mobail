@@ -11,7 +11,10 @@ export default defineConfig(({mode}) => {
       react(), 
       tailwindcss(),
       VitePWA({
-        registerType: 'prompt',
+        // autoUpdate: the new service worker installs silently in the background and
+        // takes over on the NEXT app open. We deliberately do NOT set skipWaiting, so
+        // an update never reloads the page mid-sale — it waits for a fresh launch.
+        registerType: 'autoUpdate',
         manifest: {
           name: 'نظام إدارة المتاجر',
           short_name: 'نقطة البيع',
@@ -41,16 +44,11 @@ export default defineConfig(({mode}) => {
           maximumFileSizeToCacheInBytes: 5000000,
           navigateFallback: '/index.html',
           runtimeCaching: [
-            {
-              urlPattern: /\.(?:js|css)$/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'js-css-cache',
-                expiration: {
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // سنة كاملة
-                }
-              }
-            },
+            // NOTE: built JS/CSS are revisioned and handled by Workbox precache, which
+            // updates them correctly on each release. We intentionally do NOT add a
+            // CacheFirst rule for js/css here — that would serve stale bundles for a
+            // year and defeat autoUpdate. Only truly static, non-revisioned assets
+            // (fonts, images) get runtime CacheFirst below.
             {
               urlPattern: /\.(?:woff2?|woff)$/i,
               handler: 'CacheFirst',
