@@ -255,7 +255,7 @@ export function ProductGrid({ onAddExpense, onShowMaint }: ProductGridProps) {
                   touchAction: 'manipulation',
                   userSelect: 'none',
                 }}
-                className="flex-1 min-w-[72px] h-[60px] flex items-center justify-center whitespace-nowrap text-white font-bold rounded-t-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
+                className="shrink-0 lg:flex-1 px-4 min-w-[80px] h-[60px] flex items-center justify-center whitespace-nowrap text-white font-bold rounded-t-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
                 dir="rtl"
               >
                 <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '14px', fontWeight: 700 }}>
