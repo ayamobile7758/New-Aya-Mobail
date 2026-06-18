@@ -4,6 +4,7 @@ import { Shield, Key, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { NumPad } from '@/components/ui/NumPad';
+import { PinDots } from '@/components/ui/PinDots';
 
 export function ForceChangeDefaultsScreen() {
   const { recheckDefaults } = useAuth();
@@ -240,21 +241,12 @@ export function ForceChangeDefaultsScreen() {
           ) : (
             <>
               <div className="space-y-3">
-                <div className="flex justify-center gap-4">
-                  {[0, 1, 2, 3].map(i => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-12 h-14 rounded-xl border-2 flex items-center justify-center text-3xl font-bold transition-all",
-                        activeCode.length > i
-                          ? "border-accent bg-accent text-white scale-110 shadow-lg shadow-accent/20"
-                          : "border-border bg-muted text-transparent"
-                      )}
-                    >
-                      {activeCode.length > i && showPin ? activeCode[i] : '•'}
-                    </div>
-                  ))}
-                </div>
+                <PinDots
+                  variant="setup"
+                  filled={activeCode.length}
+                  value={activeCode}
+                  reveal={showPin}
+                />
                 <div className="flex justify-center">
                   <button
                     type="button"

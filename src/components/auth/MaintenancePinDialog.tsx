@@ -4,6 +4,7 @@ import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, readSettin
 import { Wrench, Clock, X } from 'lucide-react';
 import { toastSuccess, toastError } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
+import { PinDots } from '@/components/ui/PinDots';
 import { useEscKey } from '@/hooks/useEscKey';
 
 interface MaintenancePinDialogProps {
@@ -17,6 +18,7 @@ interface MaintenancePinDialogProps {
 export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, description }: MaintenancePinDialogProps) {
   const { grantMaintenanceAccess } = useAuth();
   const [pin, setPin] = useState('');
+  const [success, setSuccess] = useState(false);
   const [lockoutSecs, setLockoutSecs] = useState(0);
 
   useEscKey(onClose, isOpen);
@@ -24,6 +26,7 @@ export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, descri
   useEffect(() => {
     if (!isOpen) {
       setPin('');
+      setSuccess(false);
       return;
     }
     const checkLockout = async () => {
@@ -42,10 +45,14 @@ export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, descri
     const stored = await readSetting('maintenance_pin');
     if (stored && await verifyCode(pinToCheck, stored)) {
       await markUnlocked();
-      grantMaintenanceAccess();
-      onSuccess();
-      toastSuccess("تم الدخول لوضع الصيانة");
-      setPin('');
+      // Flash all boxes (~600ms) before entering maintenance mode.
+      setSuccess(true);
+      setTimeout(() => {
+        grantMaintenanceAccess();
+        onSuccess();
+        toastSuccess("تم الدخول لوضع الصيانة");
+        setPin('');
+      }, 550);
     } else {
       await recordFailedAttempt('maintenance');
       setPin('');
@@ -56,7 +63,7 @@ export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, descri
   };
 
   const handleKeyPress = (num: number) => {
-    if (pin.length < 4 && lockoutSecs === 0) {
+    if (pin.length < 4 && lockoutSecs === 0 && !success) {
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4) {
@@ -102,20 +109,7 @@ export function MaintenancePinDialog({ isOpen, onClose, onSuccess, title, descri
           </div>
         ) : (
           <>
-            <div className="flex gap-4 mb-8" dir="ltr">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                    pin.length > i
-                      ? 'border-accent bg-accent text-white scale-110'
-                      : 'border-border bg-surface'
-                  }`}
-                >
-                  {pin.length > i ? '•' : ''}
-                </div>
-              ))}
-            </div>
+            <PinDots filled={pin.length} success={success} className="mb-8" />
 
             <NumPad
               onDigit={(num) => handleKeyPress(Number(num))}

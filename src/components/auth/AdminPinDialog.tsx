@@ -5,6 +5,7 @@ import { set } from 'idb-keyval';
 import { Shield, Clock, X, AlertTriangle, Key } from 'lucide-react';
 import { toastSuccess, toastError } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
+import { PinDots } from '@/components/ui/PinDots';
 import { useEscKey } from '@/hooks/useEscKey';
 
 interface AdminPinDialogProps {
@@ -18,6 +19,7 @@ interface AdminPinDialogProps {
 export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description }: AdminPinDialogProps) {
   const { grantAdminAccess } = useAuth();
   const [pin, setPin] = useState('');
+  const [success, setSuccess] = useState(false);
   const [lockoutSecs, setLockoutSecs] = useState(0);
 
   // Recovery flow states
@@ -32,6 +34,7 @@ export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description 
   useEffect(() => {
     if (!isOpen) {
       setPin('');
+      setSuccess(false);
       setMode('pin');
       setRecoveryAnswer('');
       setNewPin('');
@@ -57,10 +60,14 @@ export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description 
     const stored = await readSetting('admin_pin');
     if (stored && await verifyCode(pinToCheck, stored)) {
       await set('pin_lockout_admin', null);
-      grantAdminAccess();
-      onSuccess();
-      toastSuccess("تم تأكيد الصلاحية");
-      setPin('');
+      // Flash all boxes (~600ms) before confirming, then dismiss.
+      setSuccess(true);
+      setTimeout(() => {
+        grantAdminAccess();
+        onSuccess();
+        toastSuccess("تم تأكيد الصلاحية");
+        setPin('');
+      }, 550);
     } else {
       await recordFailedAttempt('admin');
       setPin('');
@@ -71,7 +78,7 @@ export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description 
   };
 
   const handleKeyPress = (num: number) => {
-    if (pin.length < 4 && lockoutSecs === 0) {
+    if (pin.length < 4 && lockoutSecs === 0 && !success) {
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4) {
@@ -164,20 +171,7 @@ export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description 
               </div>
             ) : (
               <>
-                <div className="flex gap-4 mb-8" dir="ltr">
-                  {[...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                        pin.length > i
-                          ? 'border-accent bg-accent text-white scale-110'
-                          : 'border-border bg-surface'
-                      }`}
-                    >
-                      {pin.length > i ? '•' : ''}
-                    </div>
-                  ))}
-                </div>
+                <PinDots filled={pin.length} success={success} className="mb-8" />
 
                 <NumPad
                   onDigit={(num) => handleKeyPress(Number(num))}

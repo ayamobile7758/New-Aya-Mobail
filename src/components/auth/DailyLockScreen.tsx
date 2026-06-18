@@ -25,10 +25,12 @@ import { verifyCode, getLockoutSecondsRemaining, recordFailedAttempt, markUnlock
 import { Lock, Clock, WifiOff } from 'lucide-react';
 import { toastError, toastSuccess } from '@/components/ui/toast';
 import { NumPad } from '@/components/ui/NumPad';
+import { PinDots } from '@/components/ui/PinDots';
 
 export function DailyLockScreen() {
   const { grantPosAccess, grantAdminAccess, grantMaintenanceAccess } = useAuth();
   const [pin, setPin] = useState('');
+  const [success, setSuccess] = useState(false);
   const [lockoutSecs, setLockoutSecs] = useState(0);
   // A-1: track online/offline status so we can show a clear banner when the
   // app cannot reach Supabase. The lock screen is the first screen the user
@@ -64,6 +66,12 @@ export function DailyLockScreen() {
     }
   };
 
+  // Flash all boxes (success animation, ~600ms) before running the unlock.
+  const flashSuccessThen = (done: () => void) => {
+    setSuccess(true);
+    setTimeout(done, 550);
+  };
+
   const handleKeypadSubmit = async (newPin: string) => {
     if (lockoutSecs > 0) return;
 
@@ -72,9 +80,11 @@ export function DailyLockScreen() {
       const storedAdmin = await readSetting('admin_pin');
       if (storedAdmin && await verifyCode(newPin, storedAdmin)) {
         await markUnlocked();
-        grantAdminAccess();
-        navigateTo('/dashboard');
-        toastSuccess("تم الدخول بصلاحيات المدير");
+        flashSuccessThen(() => {
+          grantAdminAccess();
+          navigateTo('/dashboard');
+          toastSuccess("تم الدخول بصلاحيات المدير");
+        });
         return;
       }
 
@@ -82,9 +92,11 @@ export function DailyLockScreen() {
       const storedDaily = await readSetting('daily_lock');
       if (storedDaily && await verifyCode(newPin, storedDaily)) {
         await markUnlocked();
-        grantPosAccess();
-        navigateTo('/pos');
-        toastSuccess("تم الدخول بصلاحيات نقطة البيع");
+        flashSuccessThen(() => {
+          grantPosAccess();
+          navigateTo('/pos');
+          toastSuccess("تم الدخول بصلاحيات نقطة البيع");
+        });
         return;
       }
 
@@ -94,9 +106,11 @@ export function DailyLockScreen() {
         const storedMaint = await readSetting('maintenance_pin');
         if (storedMaint && await verifyCode(newPin, storedMaint)) {
           await markUnlocked();
-          grantMaintenanceAccess();
-          navigateTo('/maintenance');
-          toastSuccess("تم الدخول لوضع الصيانة");
+          flashSuccessThen(() => {
+            grantMaintenanceAccess();
+            navigateTo('/maintenance');
+            toastSuccess("تم الدخول لوضع الصيانة");
+          });
           return;
         }
       }
@@ -111,7 +125,7 @@ export function DailyLockScreen() {
   };
 
   const handleKeyPress = (num: number) => {
-    if (pin.length < 4 && lockoutSecs === 0) {
+    if (pin.length < 4 && lockoutSecs === 0 && !success) {
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4) {
@@ -155,20 +169,7 @@ export function DailyLockScreen() {
           </div>
         ) : (
           <>
-            <div className="flex gap-4 mb-6 sm:mb-10" dir="ltr">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                    pin.length > i
-                      ? 'border-accent bg-accent text-white scale-110'
-                      : 'border-border bg-surface'
-                  }`}
-                >
-                  {pin.length > i ? '•' : ''}
-                </div>
-              ))}
-            </div>
+            <PinDots filled={pin.length} success={success} className="mb-6 sm:mb-10" />
 
             <NumPad
               onDigit={(num) => handleKeyPress(Number(num))}
