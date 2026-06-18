@@ -15,8 +15,11 @@ import { TransferDialog } from './components/TransferDialog';
 import { EODCloseDialog } from './components/EODCloseDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { PurchaseDialog } from './components/PurchaseDialog';
+import { PurchaseListTab } from './components/PurchaseListTab';
+import { ShoppingCart } from 'lucide-react';
 
-type Tab = 'ledger' | 'eod';
+type Tab = 'ledger' | 'eod' | 'purchases';
 
 export default function OperationsPage() {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -30,6 +33,7 @@ export default function OperationsPage() {
   const [isTopupOpen, setIsTopupOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isEODOpen, setIsEODOpen] = useState(false);
+  const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
 
   const { data: summary } = useQuery({
     queryKey: ['daily-summary', date],
@@ -130,13 +134,14 @@ export default function OperationsPage() {
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'ledger', label: 'الحركة المالية', icon: ArrowRightLeft },
+    { id: 'purchases', label: 'المشتريات', icon: ShoppingCart },
     { id: 'eod', label: 'الإقفال اليومي', icon: Lock },
   ];
 
   return (
     <div className="flex flex-col h-full bg-background">
       {/* ── Header ── */}
-      <header className="bg-surface border-b border-border px-4 pt-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border px-4 pt-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div className="flex items-center gap-3">
@@ -165,6 +170,14 @@ export default function OperationsPage() {
                 >
                   <ArrowRightLeft className="w-4 h-4 text-accent" />
                   تحويل
+                </button>
+                <button
+                  onClick={() => setIsPurchaseOpen(true)}
+                  className="h-[var(--btn-height)] px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
+                  style={{ fontFamily: 'Tajawal, sans-serif' }}
+                >
+                  <ShoppingCart className="w-4 h-4 text-accent" />
+                  شراء بضاعة
                 </button>
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-xl h-11">
                   <input
@@ -331,6 +344,9 @@ export default function OperationsPage() {
             </>
           )}
 
+          {/* ══ PURCHASES TAB ═══════════════════════════════════════════════ */}
+          {activeTab === 'purchases' && <PurchaseListTab />}
+
           {/* ══ EOD TAB ═════════════════════════════════════════════════════ */}
           {activeTab === 'eod' && (
             <div className="space-y-6 animate-in fade-in">
@@ -495,6 +511,7 @@ export default function OperationsPage() {
       {/* ── Dialogs ── */}
       <TopupDialog isOpen={isTopupOpen} onClose={() => setIsTopupOpen(false)} />
       <TransferDialog isOpen={isTransferOpen} onClose={() => setIsTransferOpen(false)} />
+      <PurchaseDialog isOpen={isPurchaseOpen} onClose={() => setIsPurchaseOpen(false)} />
       <EODCloseDialog
         isOpen={isEODOpen}
         onClose={() => { setIsEODOpen(false); refetchTodayStatus(); }}
