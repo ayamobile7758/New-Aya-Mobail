@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy, Wrench, ShoppingCart, Smartphone, Monitor } from 'lucide-react';
+import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy, Wrench, ShoppingCart, Smartphone, Monitor, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +12,7 @@ import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audi
 import { getDeviceId, getDeviceName, setDeviceName } from '@/lib/device';
 import { getCategories, addCategory, updateCategory, deleteCategory, Category, getDeletedCategories, restoreCategory } from '@/db/queries/categories';
 import { getDeletedProducts, restoreProduct } from '@/db/queries/products';
-import { getDeletedAccounts, restoreAccount } from '@/db/queries/accounts';
+import { getDeletedAccounts, restoreAccount, getActiveAccounts, createAccount, updateAccount, deactivateAccount, Account } from '@/db/queries/accounts';
 import { getDeletedJobs, restoreJob } from '@/db/queries/maintenance';
 import { getDeletedExpenses, restoreExpense } from '@/db/queries/expenses';
 import { formatMoney } from '@/lib/money';
@@ -79,7 +79,7 @@ interface CategoryForm {
 const EMPTY_CAT_FORM: CategoryForm = { name: '', color: '#CF694A', icon: 'Box', sort_order: '0' };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit' | 'categories' | 'trash'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'pos' | 'security' | 'backup' | 'audit' | 'categories' | 'accounts' | 'trash'>('general');
   const { settings, updateSettings } = useSettingsStore();
   const { cartVisibility, setCartVisibility } = useUIStore();
   const qc = useQueryClient();
@@ -285,6 +285,94 @@ export default function SettingsPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Accounts state
+  interface AccountForm {
+    name: string;
+    type: 'cash' | 'card' | 'bank' | 'wallet';
+    sort_order: string;
+  }
+  const EMPTY_ACC_FORM: AccountForm = { name: '', type: 'cash', sort_order: '0' };
+  const [accForm, setAccForm] = useState<AccountForm>(EMPTY_ACC_FORM);
+  const [editingAcc, setEditingAcc] = useState<Account | null>(null);
+  const [showAccForm, setShowAccForm] = useState(false);
+
+  const { data: accounts = [], refetch: refetchAccounts } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => getActiveAccounts(),
+    enabled: activeTab === 'accounts',
+  });
+
+  const addAccMutation = useMutation({
+    mutationFn: () => createAccount({
+      name: accForm.name,
+      type: accForm.type,
+      sort_order: parseInt(accForm.sort_order) || 0,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['active-accounts'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      refetchAccounts();
+      setAccForm(EMPTY_ACC_FORM);
+      setShowAccForm(false);
+      toast.success('تمت إضافة الحساب بنجاح');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateAccMutation = useMutation({
+    mutationFn: () => updateAccount(editingAcc!.id, {
+      name: accForm.name,
+      type: accForm.type,
+      sort_order: parseInt(accForm.sort_order) || 0,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['active-accounts'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      refetchAccounts();
+      setEditingAcc(null);
+      setShowAccForm(false);
+      setAccForm(EMPTY_ACC_FORM);
+      toast.success('تم تحديث الحساب بنجاح');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deactivateAccMutation = useMutation({
+    mutationFn: (id: string) => deactivateAccount(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['active-accounts'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+      qc.invalidateQueries({ queryKey: ['deleted_accounts'] });
+      refetchAccounts();
+      toast.success('تم تعطيل الحساب بنجاح');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const openAddAcc = () => {
+    setEditingAcc(null);
+    setAccForm(EMPTY_ACC_FORM);
+    setShowAccForm(true);
+  };
+
+  const openEditAcc = (acc: Account) => {
+    setEditingAcc(acc);
+    setAccForm({
+      name: acc.name,
+      type: acc.type as any,
+      sort_order: (acc.sort_order ?? 0).toString(),
+    });
+    setShowAccForm(true);
+  };
+
+  const submitAccForm = () => {
+    if (!accForm.name.trim()) { toast.error('اسم الحساب مطلوب'); return; }
+    requireAdminAction(() => {
+      if (editingAcc) updateAccMutation.mutate();
+      else addAccMutation.mutate();
+    });
+  };
 
   // Trash / Restore queries
   const { data: deletedProducts = [], refetch: refetchDelProducts } = useQuery({
@@ -516,7 +604,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
-      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
@@ -606,6 +694,18 @@ export default function SettingsPage() {
             >
               <Tag className="w-5 h-5" />
               إدارة الفئات
+            </button>
+            <button
+              onClick={() => setActiveTab('accounts')}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors text-start",
+                activeTab === 'accounts'
+                  ? "bg-accent text-white shadow-sm"
+                  : "bg-surface text-text-secondary hover:bg-muted"
+              )}
+            >
+              <Wallet className="w-5 h-5" />
+              الحسابات
             </button>
             <button
               onClick={() => setActiveTab('trash')}
@@ -1412,6 +1512,130 @@ export default function SettingsPage() {
                                 onClick={() => requireAdminAction(() => deleteCatMutation.mutate(cat.id))}
                                 className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors text-text-secondary hover:text-danger"
                                 title="حذف"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'accounts' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Wallet className="w-6 h-6 text-accent" /> الحسابات
+                  </h2>
+                  <button
+                    onClick={openAddAcc}
+                    className="flex items-center gap-2 px-4 h-10 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    حساب جديد
+                  </button>
+                </div>
+
+                {showAccForm && (
+                  <div className="border border-accent/30 bg-accent/5 rounded-xl p-4 space-y-3 mb-4">
+                    <h3 className="font-bold text-accent">{editingAcc ? 'تعديل الحساب' : 'إضافة حساب جديد'}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">اسم الحساب *</label>
+                        <input
+                          type="text"
+                          value={accForm.name}
+                          onChange={e => setAccForm(f => ({ ...f, name: e.target.value }))}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent"
+                          placeholder="مثال: الخزينة الرئيسية"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">الترتيب</label>
+                        <input
+                          type="number"
+                          dir="ltr"
+                          value={accForm.sort_order}
+                          onChange={e => setAccForm(f => ({ ...f, sort_order: e.target.value }))}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent text-start"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1 text-text-secondary">نوع الحساب *</label>
+                        <select
+                          value={accForm.type}
+                          onChange={e => setAccForm(f => ({ ...f, type: e.target.value as any }))}
+                          className="w-full h-10 px-3 rounded-lg border border-border bg-background outline-none focus:border-accent"
+                        >
+                          <option value="cash">نقدي</option>
+                          <option value="card">بطاقة</option>
+                          <option value="bank">بنك</option>
+                          <option value="wallet">محفظة</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={submitAccForm}
+                        disabled={addAccMutation.isPending || updateAccMutation.isPending}
+                        className="px-5 h-10 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50"
+                      >
+                        {editingAcc ? 'حفظ التعديل' : 'إضافة'}
+                      </button>
+                      <button
+                        onClick={() => { setShowAccForm(false); setEditingAcc(null); setAccForm(EMPTY_ACC_FORM); }}
+                        className="px-5 h-10 bg-muted border border-border text-text-primary font-bold rounded-lg hover:bg-border transition-colors"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted text-text-secondary">
+                      <tr>
+                        <th className="px-4 py-3 text-start">الحساب</th>
+                        <th className="px-4 py-3 text-start">النوع</th>
+                        <th className="px-4 py-3 text-start">الرصيد</th>
+                        <th className="px-4 py-3 text-start">الترتيب</th>
+                        <th className="px-4 py-3 text-start">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {accounts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-10 text-center text-text-secondary">لا توجد حسابات بعد</td>
+                        </tr>
+                      ) : accounts.map(acc => (
+                        <tr key={acc.id} className="hover:bg-muted/30">
+                          <td className="px-4 py-3 font-medium">{acc.name}</td>
+                          <td className="px-4 py-3 text-text-secondary">
+                            {acc.type === 'cash' && 'نقدي'}
+                            {acc.type === 'card' && 'بطاقة'}
+                            {acc.type === 'bank' && 'بنك'}
+                            {acc.type === 'wallet' && 'محفظة'}
+                          </td>
+                          <td className="px-4 py-3 font-bold numeric">{formatMoney(acc.balance)}</td>
+                          <td className="px-4 py-3 numeric text-text-secondary">{acc.sort_order}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => openEditAcc(acc)}
+                                className="p-1.5 hover:bg-muted rounded-lg transition-colors text-text-secondary hover:text-text-primary"
+                                title="تعديل"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => requireAdminAction(() => deactivateAccMutation.mutate(acc.id))}
+                                className="p-1.5 hover:bg-danger/10 rounded-lg transition-colors text-text-secondary hover:text-danger"
+                                title="تعطيل"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
