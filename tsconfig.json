@@ -34,6 +34,7 @@
     "e2e/**",
     "vitest.config.ts",
     "playwright.config.ts",
-    "new"
+    "new",
+    "new1"
   ]
 }
