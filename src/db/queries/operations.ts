@@ -29,7 +29,7 @@ export interface LedgerEntry {
   account_name: string | null;
   type: 'debit' | 'credit';
   amount: number;
-  ref_type: 'invoice' | 'expense' | 'topup' | 'transfer' | 'manual' | 'reconciliation' | 'maintenance' | 'eod_reconciliation' | 'inventory_adjustment';
+  ref_type: 'invoice' | 'expense' | 'topup' | 'transfer' | 'manual' | 'reconciliation' | 'maintenance' | 'eod_reconciliation' | 'inventory_adjustment' | 'purchase';
   ref_id: string | null;
   description: string;
   created_at: string;
@@ -57,6 +57,7 @@ export async function getRecentLedgerEntries(limit = 100): Promise<LedgerEntry[]
     account_name: row.account_name
       ?? (row.ref_type === 'inventory_adjustment' ? 'تعديل جرد'
           : row.ref_type === 'eod_reconciliation' ? 'تسوية إقفال'
+          : row.ref_type === 'purchase' ? 'شراء بضاعة'
           : '—'),
   })) as LedgerEntry[];
 }
