@@ -11,11 +11,18 @@ export default defineConfig(({mode}) => {
       react(), 
       tailwindcss(),
       VitePWA({
-        // autoUpdate: the new service worker installs silently in the background and
-        // takes over on the NEXT app open. We deliberately do NOT set skipWaiting, so
-        // an update never reloads the page mid-sale — it waits for a fresh launch.
-        registerType: 'autoUpdate',
+        // 'prompt': when a new build is deployed, the new service worker installs
+        // and WAITS. We never auto-activate it mid-session (so a sale is never
+        // interrupted). Instead PwaManager surfaces a "يوجد تحديث جديد" banner and
+        // the owner taps "تحديث" to activate + reload. This replaced 'autoUpdate',
+        // which used to swap silently and left users feeling the app never updated.
+        registerType: 'prompt',
         manifest: {
+          id: '/',
+          start_url: '/',
+          scope: '/',
+          lang: 'ar',
+          dir: 'rtl',
           name: 'نظام إدارة المتاجر',
           short_name: 'نقطة البيع',
           // A-1: cloud-only — updated description to reflect that internet is required.
@@ -24,17 +31,28 @@ export default defineConfig(({mode}) => {
           background_color: '#F9F8F5',
           display: 'standalone',
           orientation: 'any',
+          // Android/Chrome installability needs at least one 192px and one 512px PNG.
+          // We list explicit `purpose: 'any'` icons AND a separate `maskable` entry —
+          // combining both purposes on a single icon can make some launchers skip it,
+          // which is why the home-screen icon was not appearing after install.
           icons: [
             {
               src: '/pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
               src: '/pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: '/pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         },

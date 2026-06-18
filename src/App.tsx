@@ -10,7 +10,7 @@ import { assertClockNotTampered } from './lib/clockGuard';
 import { Shell } from './components/layout/Shell';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { ensurePersistence } from './lib/storage';
-import { AddToHomeScreen } from './components/pwa/AddToHomeScreen';
+import { PwaManager } from './components/pwa/PwaManager';
 import { ModuleError } from './components/layout/ModuleError';
 
 // Pages
@@ -154,10 +154,10 @@ function AppRoutes() {
   if (accessLevel === 'maintenance') {
     return (
       <>
-        <AddToHomeScreen />
+        <PwaManager />
         <Routes>
           <Route path="/maintenance" element={
-            <div className="flex flex-col h-screen overflow-hidden bg-background text-text-primary">
+            <div className="flex flex-col h-[100dvh] overflow-hidden bg-background text-text-primary">
               <ModuleWrapper><MaintenancePage /></ModuleWrapper>
             </div>
           } />
@@ -178,7 +178,7 @@ function AppRoutes() {
 
   return (
     <>
-      <AddToHomeScreen />
+      <PwaManager />
       {!isSupabaseMode() && <BackupReminderBanner />}
       <Routes>
         <Route element={<Shell />}>
