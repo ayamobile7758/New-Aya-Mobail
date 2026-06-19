@@ -9,6 +9,7 @@ import {
   Receipt, Package, Tag, Gift, DollarSign, Download, FileSpreadsheet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { format, startOfMonth } from 'date-fns';
 import { TopupDialog } from './components/TopupDialog';
 import { TransferDialog } from './components/TransferDialog';
@@ -141,66 +142,46 @@ export default function OperationsPage() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* ── Header ── */}
-      <header className="bg-surface border-b border-border px-4 pt-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-                <ArrowRightLeft className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>الحركة المالية والسجل</h1>
-                <p className="text-sm text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>متابعة كافة حركات الصناديق والمصروفات والمبيعات</p>
-              </div>
-            </div>
-            {activeTab === 'ledger' && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsTopupOpen(true)}
-                  className="h-[var(--btn-height)] px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
-                  style={{ fontFamily: 'Tajawal, sans-serif' }}
-                >
-                  <PlusCircle className="w-4 h-4 text-accent" />
-                  شحن رصيد
-                </button>
-                <button
-                  onClick={() => setIsTransferOpen(true)}
-                  className="h-[var(--btn-height)] px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
-                  style={{ fontFamily: 'Tajawal, sans-serif' }}
-                >
-                  <ArrowRightLeft className="w-4 h-4 text-accent" />
-                  تحويل
-                </button>
-                <button
-                  onClick={() => setIsPurchaseOpen(true)}
-                  className="h-[var(--btn-height)] px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
-                  style={{ fontFamily: 'Tajawal, sans-serif' }}
-                >
-                  <ShoppingCart className="w-4 h-4 text-accent" />
-                  شراء بضاعة
-                </button>
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-xl h-11">
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer h-full"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
+      <PageHeader
+        icon={ArrowRightLeft}
+        title="الحركة المالية والسجل"
+        subtitle="متابعة كافة حركات الصناديق والمصروفات والمبيعات"
+        actions={activeTab === 'ledger' ? (
+          <>
+            <button
+              onClick={() => setIsTopupOpen(true)}
+              className="h-10 px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
+            >
+              <PlusCircle className="w-4 h-4 text-accent" />
+              شحن رصيد
+            </button>
+            <button
+              onClick={() => setIsTransferOpen(true)}
+              className="h-10 px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
+            >
+              <ArrowRightLeft className="w-4 h-4 text-accent" />
+              تحويل
+            </button>
+            <button
+              onClick={() => setIsPurchaseOpen(true)}
+              className="h-10 px-4 bg-surface border border-border flex items-center gap-2 rounded-lg hover:border-accent font-medium text-sm transition-colors"
+            >
+              <ShoppingCart className="w-4 h-4 text-accent" />
+              شراء بضاعة
+            </button>
+          </>
+        ) : null}
+      >
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 flex-wrap">
           {/* Tabs */}
-          <div className="flex gap-1 border-b border-border -mx-4 px-4">
+          <div className="flex gap-1 border-b border-border -mx-4 px-4 overflow-x-auto no-scrollbar">
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}
+                  style={{ fontSize: '13px' }}
                   className={cn(
                     'flex items-center gap-1.5 px-4 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors',
                     activeTab === tab.id
@@ -217,8 +198,20 @@ export default function OperationsPage() {
               );
             })}
           </div>
+
+          {activeTab === 'ledger' && (
+            <div className="flex items-center gap-2 bg-muted p-1 rounded-xl h-11 self-end sm:self-auto">
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="bg-transparent border-none outline-none font-medium px-2 py-1 text-sm cursor-pointer h-full"
+                dir="ltr"
+              />
+            </div>
+          )}
         </div>
-      </header>
+      </PageHeader>
 
       {/* ── Content ── */}
       <main className="flex-1 overflow-y-auto p-4">
