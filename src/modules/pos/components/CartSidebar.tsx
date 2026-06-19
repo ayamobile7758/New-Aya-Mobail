@@ -360,7 +360,7 @@ export function CartSidebar() {
       setPendingGlobalAmt(fils);
       setShowConflictConfirm(true);
     } else {
-      setGlobalDiscount('amount', fils);
+      requireAdminAction(() => setGlobalDiscount('amount', fils));
     }
   };
 
@@ -689,9 +689,10 @@ export function CartSidebar() {
         confirmLabel="متابعة"
         cancelLabel="إلغاء"
         onConfirm={() => {
-          if (pendingGlobalAmt !== null) setGlobalDiscount('amount', pendingGlobalAmt);
+          const amt = pendingGlobalAmt;
           setPendingGlobalAmt(null);
           setShowConflictConfirm(false);
+          if (amt !== null) requireAdminAction(() => setGlobalDiscount('amount', amt));
         }}
         onCancel={() => {
           setPendingGlobalAmt(null);
