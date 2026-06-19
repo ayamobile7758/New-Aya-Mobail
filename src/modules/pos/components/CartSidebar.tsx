@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney, applyPercent } from '@/lib/money';
@@ -606,6 +606,103 @@ export function CalculatorDialog({
   );
 }
 
+/*
+// ─── AmountEntryDialog ────────────────────────────────────────────────────────
+function AmountEntryDialog({
+  title,
+  subTitle,
+  initialValueFils,
+  onClose,
+  onApply,
+}: {
+  title: string;
+  subTitle?: string;
+  initialValueFils: number | null;
+  onClose: () => void;
+  onApply: (fils: number) => void;
+}) {
+  const initDigits = (): string => {
+    if (!initialValueFils || initialValueFils <= 0) return '';
+    const dinars = initialValueFils / 100;
+    return Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(2).replace(/\.?0+$/, '');
+  };
+
+  const [digits, setDigits] = useState<string>(initDigits);
+  const dialogRef = useFocusTrap(true);
+  useEscKey(onClose);
+
+  const displayValue = (): string => {
+    if (!digits) return '—';
+    return `${digits} د.أ`;
+  };
+
+  const handleDigit = (d: string) => {
+    if (d === '.') {
+      if (digits.includes('.')) return;
+      setDigits(prev => (prev === '' ? '0.' : prev + '.'));
+      return;
+    }
+    const next = digits + d;
+    const dotIdx = next.indexOf('.');
+    if (dotIdx >= 0 && next.length - dotIdx - 1 > 2) return;
+    setDigits(next);
+  };
+
+  const handleSubmit = () => {
+    const fils = parseMoney(digits || '0');
+    onApply(fils);
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        className="bg-surface rounded-t-2xl lg:rounded-2xl w-full max-w-sm p-5 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+        dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 700 }}>
+            {title}
+          </span>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-full">
+            <X className="w-5 h-5 text-text-secondary" />
+          </button>
+        </div>
+
+        {subTitle && (
+          <p className="text-text-secondary mb-3 truncate" style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}>
+            {subTitle}
+          </p>
+        )}
+
+        <div
+          className="w-full text-center mb-4 py-3 rounded-xl bg-muted"
+          style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 700, color: '#CF694A', minHeight: '64px' }}
+        >
+          {displayValue()}
+        </div>
+
+        <NumPad
+          onDigit={handleDigit}
+          onClear={() => setDigits(prev => prev.slice(0, -1))}
+          onSubmit={handleSubmit}
+          allowDecimal
+        />
+      </div>
+    </div>
+  );
+}
+*/
+
 // ─── Main CartSidebar ──────────────────────────────────────────────────────────
 export function CartSidebar() {
   const {
@@ -653,6 +750,20 @@ export function CartSidebar() {
   });
   const [confirmClear, setConfirmClear] = useState(false);
 
+  // New local states for cash received and bank transfer
+  // const [receivedFils, setReceivedFils] = useState<number | null>(null);
+  const [bankFils, setBankFils] = useState<number | null>(null);
+  // const [showReceivedDialog, setShowReceivedDialog] = useState(false);
+  // const [showBankDialog, setShowBankDialog] = useState(false);
+
+  // Reset fields when cart is empty
+  useEffect(() => {
+    if (items.length === 0) {
+      // setReceivedFils(null);
+      setBankFils(null);
+    }
+  }, [items.length]);
+
   // Part C: one-tap mutation — same completeSale call the PaymentDialog uses
   const queryClient = useQueryClient();
   const { data: cashAccounts = [] } = useQuery({
@@ -660,24 +771,24 @@ export function CartSidebar() {
     queryFn: getActiveAccounts,
     staleTime: 30_000, // avoid re-fetching on every render
   });
-  const defaultCashAccount = cashAccounts.find(a => a.type === 'cash') ?? null;
 
   const oneTapMutation = useMutation({
-    mutationFn: (accountId: string) =>
+    mutationFn: (payments: { accountId: string; amount: number }[]) =>
       completeSale({
         cartItems: items,
         subtotal: getSubtotal(),
         totalDiscount: getTotalDiscount(),
         totalAmount: getTotal(),
-        payments: [{ accountId, amount: getTotal() }],
+        payments,
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['active-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
       queryClient.invalidateQueries({ queryKey: ['report'] });
-      // Route through Part-4a logic: change is always 0 on exact-amount one-tap
       clearCart();
+      // setReceivedFils(null);
+      setBankFils(null);
       toast.success(`تمت العملية — فاتورة ${data.invoiceNumber}`);
     },
     onError: (err: any) => {
@@ -685,64 +796,41 @@ export function CartSidebar() {
     },
   });
 
-  // Part C: long-press gesture state
-  const LONG_PRESS_MS = 500;
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressTriggeredRef = useRef(false);
-
-  const clearLongPressTimer = () => {
-    if (longPressTimerRef.current !== null) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => { return () => { clearLongPressTimer(); }; }, []);
-
-  // SAFE = has a default cash account AND cart is non-empty AND total > 0
-  const isSafeForOneTap = defaultCashAccount !== null && items.length > 0 && getTotal() > 0;
-
-  const handlePayButtonPointerDown = () => {
+  const handlePayClick = () => {
     if (oneTapMutation.isPending) return;
-    longPressTriggeredRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      // Long press: open the full PaymentDialog
-      longPressTriggeredRef.current = true;
-      clearLongPressTimer();
-      if (items.length > 0) setIsPaymentOpen(true);
-    }, LONG_PRESS_MS);
-  };
 
-  const handlePayButtonPointerUp = () => {
-    if (longPressTriggeredRef.current) {
-      // Already handled by the long-press timer — do nothing on release
-      longPressTriggeredRef.current = false;
+    const total = getTotal();
+    if (items.length === 0 || total <= 0) return;
+
+    const bankAmount = bankFils || 0;
+    const cashAccount = cashAccounts.find(a => a.type === 'cash');
+    const bankAccount = cashAccounts.find(a => a.type === 'bank');
+
+    if (bankAmount > 0 && !bankAccount) {
+      toast.error("لا يوجد حساب بنك");
       return;
     }
-    clearLongPressTimer();
-    // Short tap
-    if (oneTapMutation.isPending) return;
-    if (isSafeForOneTap) {
-      oneTapMutation.mutate(defaultCashAccount!.id);
-    } else {
-      // Fallback: open dialog (e.g. no cash account, zero total)
-      if (items.length > 0) setIsPaymentOpen(true);
+
+    const cashNeeded = bankAmount < total;
+    if (cashNeeded && !cashAccount) {
+      toast.error("لا يوجد حساب كاش / نقد");
+      return;
     }
-  };
 
-  const handlePayButtonPointerLeave = () => {
-    // Pointer left the button while held: cancel any pending gesture, no action
-    clearLongPressTimer();
-    longPressTriggeredRef.current = false;
-  };
+    // Build payments
+    let payments: { accountId: string; amount: number }[] = [];
+    if (bankAmount <= 0) {
+      payments = [{ accountId: cashAccount!.id, amount: total }];
+    } else if (bankAmount >= total) {
+      payments = [{ accountId: bankAccount!.id, amount: total }];
+    } else {
+      payments = [
+        { accountId: bankAccount!.id, amount: bankAmount },
+        { accountId: cashAccount!.id, amount: total - bankAmount }
+      ];
+    }
 
-  const handlePayButtonPointerCancel = () => {
-    // Touch interrupted (incoming call, system gesture, scroll-steal): the OS
-    // fires pointercancel, NOT pointerleave. Without this the long-press timer
-    // would survive and fire ~500ms later, opening the dialog as a "ghost" tap.
-    clearLongPressTimer();
-    longPressTriggeredRef.current = false;
+    oneTapMutation.mutate(payments);
   };
 
   const selectedItem = selectedItemId ? items.find(i => i.cartItemId === selectedItemId) ?? null : null;
@@ -1118,10 +1206,7 @@ export function CartSidebar() {
 
             {/* Pay button — short tap = one-tap cash sale (if safe), long press = open dialog */}
             <button
-              onPointerDown={handlePayButtonPointerDown}
-              onPointerUp={handlePayButtonPointerUp}
-              onPointerLeave={handlePayButtonPointerLeave}
-              onPointerCancel={handlePayButtonPointerCancel}
+              onClick={handlePayClick}
               disabled={items.length === 0 || oneTapMutation.isPending}
               style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation', userSelect: 'none' }}
               className="w-full bg-accent text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
