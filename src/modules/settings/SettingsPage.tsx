@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportDb, importDb } from '@/lib/backup';
-import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin, setAdminRecovery, getAdminRecoveryQuestion } from '@/lib/auth';
+import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin, setAdminRecovery, getAdminRecoveryQuestion, getDiscountPolicy, setDiscountPolicy } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useUIStore } from '@/stores/ui.store';
 import { getAuditLog, getAuditActions, getAuditDevices } from '@/db/queries/audit';
@@ -129,6 +129,22 @@ export default function SettingsPage() {
   const [recoveryAdminPin, setRecoveryAdminPin] = useState('');
   const [existingRecoveryQuestion, setExistingRecoveryQuestion] = useState<string | null>(null);
   const [isSettingRecovery, setIsSettingRecovery] = useState(false);
+
+  // Discount Policy Settings
+  const [policyEnabled, setPolicyEnabled] = useState(true);
+  const [policyCapType, setPolicyCapType] = useState<'percent' | 'amount'>('percent');
+  const [policyCapValue, setPolicyCapValue] = useState('100');
+
+  useEffect(() => {
+    if (activeTab === 'pos') {
+      getDiscountPolicy().then(p => {
+        setPolicyEnabled(p.enabled);
+        setPolicyCapType(p.capType);
+        const displayVal = p.capType === 'amount' ? (p.capValue / 100).toString() : p.capValue.toString();
+        setPolicyCapValue(displayVal);
+      });
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'security') {
@@ -602,6 +618,23 @@ export default function SettingsPage() {
     });
   };
 
+  const handleSaveDiscountPolicy = () => {
+    requireAdminAction(async () => {
+      try {
+        const val = parseFloat(policyCapValue) || 0;
+        const storedValue = policyCapType === 'amount' ? Math.round(val * 100) : val;
+        await setDiscountPolicy({
+          enabled: policyEnabled,
+          capType: policyCapType,
+          capValue: storedValue,
+        });
+        toast.success('تم حفظ سياسة الخصم بنجاح');
+      } catch (err: any) {
+        toast.error('خطأ في حفظ سياسة الخصم: ' + err.message);
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
@@ -911,6 +944,93 @@ export default function SettingsPage() {
                     })}
                   </div>
                 </div>
+
+                {/* ── Discount policy control ── */}
+                <div className="max-w-md mt-8 pt-6 border-t border-border space-y-4">
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-accent" /> سياسة الخصم
+                  </h3>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    حدد شروط ونوع الخصم المسموح به للموظفين دون الحاجة للموافقة من المشرف.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Toggle: enabled */}
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface">
+                      <span className="font-bold text-sm">السماح بالخصم للموظفين</span>
+                      <label className="relative inline-flex items-center cursor-pointer" dir="ltr">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={policyEnabled}
+                          onChange={(e) => setPolicyEnabled(e.target.checked)}
+                        />
+                        <div dir="ltr" className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                      </label>
+                    </div>
+
+                    {policyEnabled && (
+                      <>
+                        {/* Segmented choice / two buttons: capType */}
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-medium">نوع سقف الخصم</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPolicyCapType('percent')}
+                              className={cn(
+                                "h-11 rounded-xl font-medium transition-colors border",
+                                policyCapType === 'percent'
+                                  ? "bg-text-primary text-white border-transparent"
+                                  : "bg-surface border-border text-text-secondary hover:border-accent"
+                              )}
+                            >
+                              نسبة %
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPolicyCapType('amount')}
+                              className={cn(
+                                "h-11 rounded-xl font-medium transition-colors border",
+                                policyCapType === 'amount'
+                                  ? "bg-text-primary text-white border-transparent"
+                                  : "bg-surface border-border text-text-secondary hover:border-accent"
+                              )}
+                            >
+                              مبلغ ثابت
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Numeric input: capValue */}
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {policyCapType === 'percent'
+                              ? "أقصى نسبة خصم مسموحة (%)"
+                              : "أقصى مبلغ خصم مسموح (د.أ)"}
+                          </label>
+                          <input
+                            type="number"
+                            dir="ltr"
+                            min="0"
+                            step="any"
+                            value={policyCapValue}
+                            onChange={(e) => setPolicyCapValue(e.target.value)}
+                            className="w-full h-11 px-3 rounded-lg border border-border bg-background focus:border-accent outline-none text-start font-bold numeric"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <button
+                      onClick={handleSaveDiscountPolicy}
+                      className="h-11 px-6 bg-accent text-white font-bold rounded-lg hover:bg-accent-hover transition-colors w-full"
+                    >
+                      حفظ سياسة الخصم
+                    </button>
+                  </div>
+                </div>
+
               </div>
             )}
 
