@@ -33,6 +33,7 @@ import { X, CheckCircle, FileText, Plus, Trash2, ChevronDown } from 'lucide-reac
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { NumPad } from '@/components/ui/NumPad';
+import { cn } from '@/lib/utils';
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -71,8 +72,15 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
     enabled: isOpen,
   });
 
+  // All cash-type accounts (for Part 2 quick picker)
+  const cashAccounts = accounts.filter(a => a.type === 'cash');
+
   // Preferred quick account: first cash-type, fallback to first account
-  const quickAccount = accounts.find(a => a.type === 'cash') ?? accounts[0] ?? null;
+  const quickAccount = cashAccounts[0] ?? accounts[0] ?? null;
+
+  // Part 2: selected quick account (default = quickAccount; resets on dialog open via Effect A)
+  const [selectedQuickAccountId, setSelectedQuickAccountId] = useState<string | null>(null);
+  const quickAccountForCheckout = accounts.find(a => a.id === selectedQuickAccountId) ?? quickAccount;
 
   // C-6: ref to track the previous isOpen state, so Effect A fires only on
   // the false→true transition (dialog opening), not on every render.
@@ -85,6 +93,7 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
     if (isOpen && !wasOpenRef.current) {
       setShowAdvanced(false);
       setCashReceivedInput('');
+      setSelectedQuickAccountId(null); // Part 2: reset to default on open
       if (accounts.length > 0) {
         setPayments([{
           id: nanoid(),
@@ -198,8 +207,9 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleQuickCheckout = () => {
     if (checkoutMutation.isPending) return;
-    const paymentsToUse = (total > 0 && quickAccount)
-      ? [{ accountId: quickAccount.id, amount: total }]
+    const acct = quickAccountForCheckout;
+    const paymentsToUse = (total > 0 && acct)
+      ? [{ accountId: acct.id, amount: total }]
       : [];
     checkoutMutation.mutate({ payments: paymentsToUse, change: 0 });
   };
@@ -289,12 +299,33 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
                   <>
                     <CheckCircle className="w-6 h-6" />
                     تسجيل البيع
-                    {quickAccount && (
-                      <span className="text-white/70 text-sm font-medium">— {quickAccount.name}</span>
+                    {quickAccountForCheckout && (
+                      <span className="text-white/70 text-sm font-medium">— {quickAccountForCheckout.name}</span>
                     )}
                   </>
                 )}
               </button>
+              {/* Part 2: cash-account pills — only rendered when > 1 cash account exists */}
+              {cashAccounts.length > 1 && (
+                <div className="flex flex-wrap gap-2 mt-3" dir="rtl">
+                  {cashAccounts.map(acct => (
+                    <button
+                      key={acct.id}
+                      type="button"
+                      onClick={() => setSelectedQuickAccountId(acct.id)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-sm font-medium border transition-colors',
+                        (selectedQuickAccountId ?? quickAccount?.id) === acct.id
+                          ? 'bg-accent text-white border-transparent'
+                          : 'bg-surface border-border text-text-secondary hover:border-accent'
+                      )}
+                      style={{ fontFamily: 'Tajawal, sans-serif' }}
+                    >
+                      {acct.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 onClick={() => setShowAdvanced(true)}
                 className="w-full mt-3 flex items-center justify-center gap-1 text-sm text-text-secondary hover:text-accent transition-colors py-2"
@@ -393,6 +424,33 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
                       <span className="numeric font-bold text-lg">{formatMoney(advancedChange)}</span>
                     </div>
                   )}
+                  {/* Part 3: preset cash-received shortcuts */}
+                  <div className="flex flex-wrap gap-1.5 mb-3" dir="rtl">
+                    {(['بالضبط', 5, 10, 20, 50] as const).map(preset => (
+                      <button
+                        key={String(preset)}
+                        type="button"
+                        onClick={() => {
+                          if (preset === 'بالضبط') {
+                            // set cash received = exact total cash portion (change = 0)
+                            const totalCashNeeded = parsedPayments
+                              .filter(p => cashAccountIds.has(p.accountId))
+                              .reduce((s, p) => s + p.amount, 0);
+                            const dinars = totalCashNeeded / 100;
+                            setCashReceivedInput(
+                              Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(3).replace(/\.?0+$/, '')
+                            );
+                          } else {
+                            setCashReceivedInput(String(preset));
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg border border-border bg-surface text-sm font-bold text-text-primary hover:border-accent hover:bg-muted transition-colors"
+                        style={{ fontFamily: 'Tajawal, sans-serif' }}
+                      >
+                        {preset === 'بالضبط' ? preset : `${preset} د.أ`}
+                      </button>
+                    ))}
+                  </div>
                   <div className="flex justify-center pt-1">
                     <NumPad
                       allowDecimal
