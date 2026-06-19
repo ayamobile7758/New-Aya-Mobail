@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Settings, Shield, HardDrive, Download, Upload, AlertTriangle, Key, Store, Receipt, ClipboardList, RefreshCw, Tag, Plus, Pencil, Trash2, EyeOff, Eye, FileDown, Tablet, Copy, Wrench, ShoppingCart, Smartphone, Monitor, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportDb, importDb } from '@/lib/backup';
 import { changeDailyLock, changeAdminPin, isDailyLockEnabled, setDailyLockEnabled, isMaintenanceEnabled, setMaintenanceEnabled, changeMaintenancePin, setAdminRecovery, getAdminRecoveryQuestion, getDiscountPolicy, setDiscountPolicy } from '@/lib/auth';
@@ -637,19 +638,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
-      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-              <Settings className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold">الإعدادات</h1>
-              <p className="text-sm text-text-secondary">إدارة الأمان والنسخ الاحتياطي</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        icon={Settings}
+        title="الإعدادات"
+        subtitle="إدارة الأمان والنسخ الاحتياطي"
+      />
 
       <main className="flex-1 overflow-y-auto p-4 content-area">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-6">
