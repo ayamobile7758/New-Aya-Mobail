@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney, applyPercent } from '@/lib/money';
-import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
 import { toast } from 'sonner';
@@ -395,6 +395,215 @@ function GlobalDiscountAmountDialog({
   );
 }
 
+// ─── Calculator dialog ────────────────────────────────────────────────────────
+function CalculatorDialog({
+  onClose,
+  onTransferToCash,
+}: {
+  onClose: () => void;
+  onTransferToCash?: (value: string) => void;
+}) {
+  const [display, setDisplay] = useState<string>('');
+  // operator state: left operand (in fils), pending operator, right being typed
+  const [leftFils, setLeftFils] = useState<number | null>(null);
+  const [operator, setOperator] = useState<string | null>(null);
+  const [justEvaluated, setJustEvaluated] = useState(false);
+
+  const dialogRef = useFocusTrap(true);
+  useEscKey(onClose);
+
+  const displayDinars = display === '' ? '0' : display;
+
+  const handleDigit = (d: string) => {
+    if (justEvaluated) {
+      // Start fresh after =
+      setDisplay(d === '.' ? '0.' : d);
+      setJustEvaluated(false);
+      return;
+    }
+    if (d === '.') {
+      if (display.includes('.')) return;
+      setDisplay(prev => (prev === '' ? '0.' : prev + '.'));
+      return;
+    }
+    // limit 3 decimal places
+    const dotIdx = display.indexOf('.');
+    if (dotIdx >= 0 && display.length - dotIdx - 1 >= 3) return;
+    setDisplay(prev => (prev === '' || prev === '0') && d !== '.' ? d : prev + d);
+  };
+
+  const handleClear = () => {
+    if (display.length > 0) {
+      setDisplay(prev => prev.slice(0, -1));
+    } else {
+      // clear whole expression
+      setLeftFils(null);
+      setOperator(null);
+      setJustEvaluated(false);
+    }
+  };
+
+  const handleAllClear = () => {
+    setDisplay('');
+    setLeftFils(null);
+    setOperator(null);
+    setJustEvaluated(false);
+  };
+
+  const handleOperator = (op: string) => {
+    const cur = parseMoney(display || '0');
+    if (operator !== null && leftFils !== null && !justEvaluated) {
+      // Chain: evaluate pending first
+      const result = applyOp(leftFils, cur, operator);
+      setLeftFils(result);
+      setDisplay('');
+      setOperator(op);
+      setJustEvaluated(false);
+    } else {
+      setLeftFils(cur);
+      setDisplay('');
+      setOperator(op);
+      setJustEvaluated(false);
+    }
+  };
+
+  const applyOp = (a: number, b: number, op: string): number => {
+    switch (op) {
+      case '+': return a + b;
+      case '−': return Math.max(0, a - b);
+      case '×': return Math.round(a * b / 100); // fils * scalar; b treated as JOD scale
+      case '÷': return b === 0 ? a : Math.round(a * 100 / b); // a fils / b fils = ratio
+      default: return a;
+    }
+  };
+
+  const handleEquals = () => {
+    if (operator === null || leftFils === null) return;
+    const right = parseMoney(display || '0');
+    let result: number;
+    if (operator === '×') {
+      // multiply fils by a plain factor (e.g. 1.5 JOD factor = multiply by the display number)
+      const factor = parseFloat(display || '1');
+      result = Math.round(leftFils * factor);
+    } else if (operator === '÷') {
+      const divisor = parseFloat(display || '1');
+      result = divisor === 0 ? leftFils : Math.round(leftFils / divisor);
+    } else {
+      result = applyOp(leftFils, right, operator);
+    }
+    const dinars = result / 100;
+    const str = Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(3).replace(/\.?0+$/, '');
+    setDisplay(str);
+    setLeftFils(null);
+    setOperator(null);
+    setJustEvaluated(true);
+  };
+
+  const opLabel: Record<string, string> = { '+': 'جمع', '−': 'طرح', '×': 'ضرب', '÷': 'قسمة' };
+
+  const opBtnClass = (op: string) => cn(
+    'h-11 rounded-lg border text-base font-bold transition-colors',
+    operator === op && !justEvaluated
+      ? 'bg-text-primary text-white border-transparent'
+      : 'bg-surface border-border text-text-secondary hover:border-accent'
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        className="bg-surface rounded-t-2xl lg:rounded-2xl w-full max-w-sm p-5 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+        dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="آلة حاسبة"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 700 }}>آلة حاسبة</span>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-full">
+            <X className="w-5 h-5 text-text-secondary" />
+          </button>
+        </div>
+
+        {/* Display */}
+        <div
+          className="w-full text-end mb-3 py-3 px-4 rounded-xl bg-muted"
+          style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 700, color: '#CF694A', minHeight: '64px', direction: 'ltr' }}
+        >
+          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontFamily: 'Inter, sans-serif', fontWeight: 400 }}>
+            {leftFils !== null && operator ? `${(leftFils / 100).toFixed(2)} ${operator} ` : ''}
+          </span>
+          {displayDinars}
+        </div>
+
+        {/* Operators row */}
+        <div className="grid grid-cols-4 gap-1.5 mb-2">
+          {(['+', '−', '×', '÷'] as const).map(op => (
+            <button
+              key={op}
+              type="button"
+              onClick={() => handleOperator(op)}
+              aria-label={opLabel[op]}
+              className={opBtnClass(op)}
+            >
+              {op}
+            </button>
+          ))}
+        </div>
+
+        {/* NumPad */}
+        <NumPad
+          allowDecimal
+          onDigit={handleDigit}
+          onClear={handleClear}
+          onSubmit={handleEquals}
+        />
+
+        {/* AC and Transfer row */}
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <button
+            type="button"
+            onClick={handleAllClear}
+            className="h-10 rounded-lg border border-danger text-danger text-sm font-bold hover:bg-danger/10 transition-colors"
+            style={{ fontFamily: 'Tajawal, sans-serif' }}
+          >
+            مسح كل
+          </button>
+          {onTransferToCash ? (
+            <button
+              type="button"
+              onClick={() => {
+                const val = display || '0';
+                onTransferToCash(val);
+                onClose();
+              }}
+              className="h-10 rounded-lg bg-accent text-white text-sm font-bold hover:opacity-90 transition-opacity"
+              style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px' }}
+            >
+              نقل إلى المبلغ المستلم
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="h-10 rounded-lg border border-border text-text-secondary text-sm font-bold opacity-40 cursor-not-allowed"
+              style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px' }}
+              title="افتح خيارات متقدمة لنقل المبلغ"
+            >
+              نقل إلى المبلغ المستلم
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main CartSidebar ──────────────────────────────────────────────────────────
 export function CartSidebar() {
   const {
@@ -418,6 +627,7 @@ export function CartSidebar() {
   const [activeAction, setActiveAction] = useState<ActionType | null>(null);
   const [discountEditId, setDiscountEditId] = useState<string | null>(null);
   const [showGlobalDiscountDialog, setShowGlobalDiscountDialog] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [pendingGlobalDiscount, setPendingGlobalDiscount] = useState<{ value: number; kind: 'amount' | 'percent' } | null>(null);
   const [showConflictConfirm, setShowConflictConfirm] = useState(false);
 
@@ -771,13 +981,13 @@ export function CartSidebar() {
               </div>
             </div>
 
-            {/* Action bar — qty and price only */}
+            {/* Action bar — qty, price, and calculator */}
             {!selectedItemId && (
               <p className="text-[11px] text-text-secondary text-center mb-1.5" style={{ fontFamily: 'Tajawal, sans-serif' }}>
                 اختر منتجاً من السلة لتعديل الكمية أو السعر
               </p>
             )}
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {(
                 [
                   { action: 'qty' as ActionType, label: 'الكمية', Icon: Hash },
@@ -800,6 +1010,16 @@ export function CartSidebar() {
                   {label}
                 </button>
               ))}
+              {/* Calculator button — always enabled */}
+              <button
+                onClick={() => setShowCalculator(true)}
+                style={{ height: '38px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
+                className="rounded-lg border border-border flex items-center justify-center gap-1 transition-colors bg-surface shadow-sm text-text-primary hover:bg-muted hover:border-accent"
+                aria-label="آلة حاسبة"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                آلة حاسبة
+              </button>
             </div>
 
             {/* Pay button with total embedded */}
@@ -881,7 +1101,15 @@ export function CartSidebar() {
         onClose={() => setIsPaymentOpen(false)}
         onSuccess={(id, number, change) => {
           setIsPaymentOpen(false);
-          setSuccessData({ isOpen: true, invoiceId: id, invoiceNumber: number, change });
+          if (change === 0) {
+            // Part 4a: zero change → skip SuccessDialog, clear immediately
+            // (Receipt remains accessible from the sales/history list)
+            clearCart();
+            toast.success(`تمت العملية — فاتورة ${number}`);
+          } else {
+            // change > 0 → show SuccessDialog so cashier sees the change amount
+            setSuccessData({ isOpen: true, invoiceId: id, invoiceNumber: number, change });
+          }
         }}
       />
 
@@ -904,6 +1132,13 @@ export function CartSidebar() {
         onConfirm={() => { clearCart(); setConfirmClear(false); }}
         onCancel={() => setConfirmClear(false)}
       />
+
+      {/* Calculator dialog */}
+      {showCalculator && (
+        <CalculatorDialog
+          onClose={() => setShowCalculator(false)}
+        />
+      )}
     </>
   );
 }
