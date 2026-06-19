@@ -5,6 +5,7 @@ import { getActiveAccounts } from '@/db/queries/accounts';
 import { formatMoney, parseMoney } from '@/lib/money';
 import { Plus, Receipt, CheckCircle, Settings, Download, Calendar, Trash2, Pencil, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseCategoriesDialog } from './components/ExpenseCategoriesDialog';
 import { format } from 'date-fns';
@@ -154,62 +155,56 @@ export default function ExpensesPage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
-      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold">المصروفات</h1>
-              <p className="text-sm text-text-secondary">تسجيل مصاريف المحل اليومية</p>
-            </div>
+      <PageHeader
+        icon={Receipt}
+        title="المصروفات"
+        subtitle="تسجيل مصاريف المحل اليومية"
+        actions={
+          <button 
+            onClick={() => setIsAddMode(!isAddMode)}
+            className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm whitespace-nowrap"
+          >
+            {isAddMode ? 'إلغاء' : <><Plus className="w-5 h-5"/> <span className="hidden sm:inline">تسجيل مصروف</span></>}
+          </button>
+        }
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 w-full sm:w-auto bg-muted p-1 px-3 rounded-xl border border-border h-11">
+            <Calendar className="w-4 h-4 text-text-secondary" />
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-auto"
+            />
+            <span className="text-text-secondary">-</span>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-auto"
+            />
           </div>
-          
-          <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto">
-            <div className="flex items-center gap-2 w-full sm:w-auto bg-muted p-1 px-3 rounded-xl border border-border h-11">
-              <Calendar className="w-4 h-4 text-text-secondary" />
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-auto"
-              />
-              <span className="text-text-secondary">-</span>
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent border-none outline-none text-sm font-medium w-full sm:w-auto"
-              />
-            </div>
 
-            <div className="flex gap-2 w-full sm:w-auto">
-              <button 
-                onClick={handleExportCSV}
-                disabled={expenses.length === 0}
-                className="bg-muted text-text-primary px-3 h-11 box-border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm disabled:opacity-50 flex-1 sm:flex-none"
-                title="تصدير CSV"
-              >
-                <Download className="w-5 h-5"/>
-              </button>
-              <button 
-                onClick={() => setIsCategoriesOpen(true)}
-                className="bg-muted text-text-primary px-3 h-11 box-border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm flex-1 sm:flex-none"
-                title="إعدادات الحسابات والفئات"
-              >
-                <Settings className="w-5 h-5"/>
-              </button>
-              <button 
-                onClick={() => setIsAddMode(!isAddMode)}
-                className="bg-accent text-white px-4 h-11 box-border rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm flex-1 sm:flex-none whitespace-nowrap"
-              >
-                {isAddMode ? 'إلغاء' : <><Plus className="w-5 h-5"/> <span className="hidden sm:inline">تسجيل مصروف</span></>}
-              </button>
-            </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button 
+              onClick={handleExportCSV}
+              disabled={expenses.length === 0}
+              className="bg-muted text-text-primary px-3 h-11 box-border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm disabled:opacity-50 flex-1 sm:flex-none"
+              title="تصدير CSV"
+            >
+              <Download className="w-5 h-5"/>
+            </button>
+            <button 
+              onClick={() => setIsCategoriesOpen(true)}
+              className="bg-muted text-text-primary px-3 h-11 box-border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-muted/80 transition-colors shadow-sm flex-1 sm:flex-none"
+              title="إعدادات الحسابات والفئات"
+            >
+              <Settings className="w-5 h-5"/>
+            </button>
           </div>
         </div>
-      </header>
+      </PageHeader>
 
       <main className="flex-1 overflow-y-auto p-4 content-area">
         <div className="max-w-6xl mx-auto space-y-6">
