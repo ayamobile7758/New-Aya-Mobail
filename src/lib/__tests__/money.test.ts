@@ -86,7 +86,16 @@ describe('parseMoney', () => {
   it('handles non-numeric input gracefully', () => {
     expect(parseMoney('abc')).toBe(0);
   });
-  it('rounds sub-fils correctly', () => {
-    expect(parseMoney('1.999')).toBe(200);
+  it('truncates sub-fils instead of rounding', () => {
+    expect(parseMoney('1.999')).toBe(199);
+  });
+  it('handles Arabic decimal separator', () => {
+    expect(parseMoney('5٫50')).toBe(550);
+  });
+  it('handles Arabic-Indic digits with Arabic decimal separator', () => {
+    expect(parseMoney('٥٫٥٠')).toBe(550);
+  });
+  it('handles multi-dot inputs by taking the first valid number', () => {
+    expect(parseMoney('1.500.50')).toBe(150);
   });
 });
