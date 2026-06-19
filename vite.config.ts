@@ -61,6 +61,9 @@ export default defineConfig(({mode}) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
           maximumFileSizeToCacheInBytes: 5000000,
           navigateFallback: '/index.html',
+          // Delete previous-version precaches as soon as a new SW activates, so old
+          // bundles never linger and the device cannot get "stuck" on an old build.
+          cleanupOutdatedCaches: true,
           runtimeCaching: [
             // NOTE: built JS/CSS are revisioned and handled by Workbox precache, which
             // updates them correctly on each release. We intentionally do NOT add a

@@ -72,11 +72,17 @@ export function PwaManager() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-      // Poll for a new deployment every 60 min while the app stays open, so a
-      // long-running tablet session still notices a fresh Vercel deploy.
-      if (registration) {
-        setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000);
-      }
+      if (!registration) return;
+      const check = () => registration.update().catch(() => {});
+      // Check for a fresh deploy: every 30 min while open, AND every time the app
+      // regains focus (e.g. the owner reopens the tablet in the morning) — this is
+      // when a new Vercel build is most likely to have landed since last use.
+      setInterval(check, 30 * 60 * 1000);
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') check();
+      };
+      document.addEventListener('visibilitychange', onVisible);
+      window.addEventListener('focus', check);
     },
   });
 
