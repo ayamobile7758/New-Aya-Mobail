@@ -6,7 +6,7 @@ import { useCartStore } from "@/stores/cart.store";
 import { useUIStore } from "@/stores/ui.store";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
-import { ShoppingCart, X } from "lucide-react";
+import { ShoppingCart, X, Minimize2 } from "lucide-react";
 
 import { MaintenancePinDialog } from "@/components/auth/MaintenancePinDialog";
 import { AddExpenseDialog } from "./components/AddExpenseDialog";
@@ -64,17 +64,20 @@ export default function POSPage() {
       </div>
 
       {/* ── Floating cart toggle — always visible at the bottom-start corner. In an RTL
-             layout `start` is the RIGHT side, so this sits at bottom-right (where the
-             admin-exit button used to be). One button toggles the cart: a cart icon to
-             open, an X to close. When the cart is docked it would otherwise sit on top of
-             the "complete sale" button, so we lift it above the docked cart's action zone.
+             layout `start` is the RIGHT side, so this sits at bottom-right. One button
+             toggles the cart: a cart icon to OPEN, a minimize icon to CLOSE. On every
+             device the button stays anchored at the bottom-right corner (no longer lifted
+             above the docked cart) so closing the cart is always in the same spot.
              The admin-exit button uses `end` (left in RTL), so the two never overlap. ── */}
       <button
         onClick={() => setCartOpen(o => !o)}
         className={cn(
-          "absolute start-2 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-transform",
-          isDocked
-            ? "bottom-[calc(env(safe-area-inset-bottom)+150px)]"
+          "absolute start-2 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-all",
+          // When the cart is OPEN, sit just above the cart's action zone (total +
+          // price/qty + "إتمام البيع") in the bottom-right corner — the spot the owner
+          // marked. When CLOSED, drop to the bottom-right corner above the bottom nav.
+          cartOpen
+            ? "bottom-[calc(env(safe-area-inset-bottom)+155px)]"
             : "bottom-[calc(env(safe-area-inset-bottom)+60px+0.5rem)] md:bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]",
           pulse && "scale-110"
         )}
@@ -84,7 +87,7 @@ export default function POSPage() {
       >
         <div className="relative">
           {cartOpen ? (
-            <X className="w-6 h-6" />
+            <Minimize2 className="w-6 h-6" />
           ) : (
             <>
               <ShoppingCart className="w-6 h-6" />
