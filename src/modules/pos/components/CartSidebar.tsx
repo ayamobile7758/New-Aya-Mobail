@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
-import { formatMoney, parseMoney } from '@/lib/money'; // applyPercent
+import { formatMoney, parseMoney, applyPercent } from '@/lib/money';
 import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
@@ -406,11 +406,11 @@ export function CartSidebar() {
   } = useCartStore();
   useSavedCartsStore();
   const cartStore = useCartStore();
-  const { /* accessLevel, */ requireAdminActionOnce } = useAuth();
-  const [/* policy */, /* setPolicy */] = useState<DiscountPolicy | null>(null);
+  const { accessLevel, requireAdminActionOnce } = useAuth();
+  const [policy, setPolicy] = useState<DiscountPolicy | null>(null);
 
   useEffect(() => {
-    getDiscountPolicy().then(() => {});
+    getDiscountPolicy().then(setPolicy);
   }, []);
 
   const [pulse, setPulse] = useState(false);
@@ -464,13 +464,73 @@ export function CartSidebar() {
     }
   };
 
+  const executeGlobalDiscountApply = (value: number, kind: 'amount' | 'percent') => {
+    const applyAction = () => {
+      setGlobalDiscount(kind, value);
+    };
+
+    if (value === 0) {
+      applyAction();
+      return;
+    }
+
+    if (!policy || !policy.enabled) {
+      requireAdminActionOnce(applyAction);
+      return;
+    }
+
+    const subtotalFils = getSubtotal();
+    const requestedFils = kind === 'amount' ? value : applyPercent(subtotalFils, value);
+    const capFils = policy.capType === 'amount' ? policy.capValue : applyPercent(subtotalFils, policy.capValue);
+
+    if (requestedFils > capFils) {
+      requireAdminActionOnce(applyAction);
+    } else {
+      applyAction();
+    }
+  };
+
   const handleGlobalDiscountApply = (value: number, kind: 'amount' | 'percent') => {
+    if (value === 0) {
+      setGlobalDiscount(kind, 0);
+      return;
+    }
+
     const hasLineDiscounts = items.some(i => !i.isGift && i.discountValue > 0);
-    if (value > 0 && hasLineDiscounts) {
+    if (hasLineDiscounts) {
       setPendingGlobalDiscount({ value, kind });
       setShowConflictConfirm(true);
     } else {
-      requireAdminActionOnce(() => setGlobalDiscount(kind, value));
+      executeGlobalDiscountApply(value, kind);
+    }
+  };
+
+  const handleLineDiscountApply = (itemId: string, value: number, kind: 'amount' | 'percent') => {
+    const applyAction = () => {
+      setItemDiscount(itemId, kind, value);
+    };
+
+    if (value === 0) {
+      applyAction();
+      return;
+    }
+
+    if (!policy || !policy.enabled) {
+      requireAdminActionOnce(applyAction);
+      return;
+    }
+
+    const item = items.find(i => i.cartItemId === itemId);
+    if (!item) return;
+
+    const { subtotal: subtotalFils } = calculateItemLineTotal(item);
+    const requestedFils = kind === 'amount' ? value : applyPercent(subtotalFils, value);
+    const capFils = policy.capType === 'amount' ? policy.capValue : applyPercent(subtotalFils, policy.capValue);
+
+    if (requestedFils > capFils) {
+      requireAdminActionOnce(applyAction);
+    } else {
+      applyAction();
     }
   };
 
@@ -616,6 +676,7 @@ export function CartSidebar() {
                       /* Discount box — tappable */
                       <button
                         onClick={() => setDiscountEditId(item.cartItemId)}
+                        disabled={policy?.enabled === false && accessLevel !== 'admin'}
                         style={{
                           flex: '1', minWidth: 0,
                           background: item.discountValue > 0 ? '#FEF2F2' : 'var(--color-surface, white)',
@@ -624,14 +685,17 @@ export function CartSidebar() {
                           padding: '3px 6px',
                           display: 'flex', flexDirection: 'column',
                           alignItems: 'flex-start',
-                          cursor: 'pointer',
+                          cursor: (policy?.enabled === false && accessLevel !== 'admin') ? 'not-allowed' : 'pointer',
+                          opacity: (policy?.enabled === false && accessLevel !== 'admin') ? 0.5 : 1,
                           touchAction: 'manipulation',
                         }}
                         aria-label="تعديل الخصم"
                       >
                         <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>خصم</span>
                         <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 600, color: item.discountValue > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>
-                          {item.discountValue > 0 ? `− ${formatMoney(item.discountValue)}` : '—'}
+                          {item.discountValue > 0
+                            ? (item.discountType === 'percent' ? `− ${item.discountValue}%` : `− ${formatMoney(item.discountValue)}`)
+                            : '—'}
                         </span>
                       </button>
                     )}
@@ -680,7 +744,8 @@ export function CartSidebar() {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setShowGlobalDiscountDialog(true)}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors"
+                  disabled={policy?.enabled === false && accessLevel !== 'admin'}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ fontSize: '11px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation' }}
                   title="خصم على الفاتورة كاملة"
                 >
@@ -771,10 +836,8 @@ export function CartSidebar() {
           item={discountEditItem}
           onClose={() => setDiscountEditId(null)}
           onApply={(value, kind) => {
-            requireAdminActionOnce(() => {
-              setItemDiscount(discountEditItem.cartItemId, kind, value);
-              setDiscountEditId(null);
-            });
+            handleLineDiscountApply(discountEditItem.cartItemId, value, kind);
+            setDiscountEditId(null);
           }}
         />
       )}
@@ -804,7 +867,7 @@ export function CartSidebar() {
           setPendingGlobalDiscount(null);
           setShowConflictConfirm(false);
           if (pending !== null) {
-            requireAdminActionOnce(() => setGlobalDiscount(pending.kind, pending.value));
+            executeGlobalDiscountApply(pending.value, pending.kind);
           }
         }}
         onCancel={() => {
