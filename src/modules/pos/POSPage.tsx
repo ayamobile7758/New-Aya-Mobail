@@ -73,11 +73,10 @@ export default function POSPage() {
         onClick={() => setCartOpen(o => !o)}
         className={cn(
           "absolute start-2 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-all",
-          // When the cart is OPEN, sit low in the bottom-right corner — next to the
-          // total / "إتمام البيع" zone, the spot the owner marked — without covering
-          // the checkout button. When CLOSED, drop to the corner above the bottom nav.
+          // When the cart is OPEN, sit at the very bottom-right corner, level with the
+          // "إتمام البيع" button. When CLOSED, lift it above the bottom nav bar.
           cartOpen
-            ? "bottom-[calc(env(safe-area-inset-bottom)+88px)]"
+            ? "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]"
             : "bottom-[calc(env(safe-area-inset-bottom)+60px+0.5rem)] md:bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]",
           pulse && "scale-110"
         )}
