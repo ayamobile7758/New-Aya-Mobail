@@ -450,47 +450,47 @@ function CalculatorDialog({
     setJustEvaluated(false);
   };
 
+  // ─── Unified compute: same semantics for chained ops AND equals ───────────────
+  // × and ÷ treat right as a PLAIN NUMBER FACTOR (parseFloat of displayStr),
+  //   not as a money amount. e.g. 5.000 JOD × 3 = 15.000 JOD.
+  // + and − treat right as MONEY (parseMoney → fils).
+  const compute = (leftFils_: number, displayStr: string, op: string): number => {
+    switch (op) {
+      case '+': return leftFils_ + parseMoney(displayStr || '0');
+      case '−': return Math.max(0, leftFils_ - parseMoney(displayStr || '0'));
+      case '×': {
+        const factor = parseFloat(displayStr || '1');
+        return isNaN(factor) ? leftFils_ : Math.round(leftFils_ * factor);
+      }
+      case '÷': {
+        const divisor = parseFloat(displayStr || '1');
+        return (isNaN(divisor) || divisor === 0) ? leftFils_ : Math.round(leftFils_ / divisor);
+      }
+      default: return leftFils_;
+    }
+  };
+
   const handleOperator = (op: string) => {
-    const cur = parseMoney(display || '0');
     if (operator !== null && leftFils !== null && !justEvaluated) {
-      // Chain: evaluate pending first
-      const result = applyOp(leftFils, cur, operator);
+      // Chain: evaluate pending expression first, then start new op
+      const result = compute(leftFils, display, operator);
       setLeftFils(result);
       setDisplay('');
       setOperator(op);
       setJustEvaluated(false);
     } else {
-      setLeftFils(cur);
+      // First operator: latch current display as left operand (in fils for +/−,
+      // but store as fils anyway; compute() handles scaling for × ÷)
+      setLeftFils(parseMoney(display || '0'));
       setDisplay('');
       setOperator(op);
       setJustEvaluated(false);
     }
   };
 
-  const applyOp = (a: number, b: number, op: string): number => {
-    switch (op) {
-      case '+': return a + b;
-      case '−': return Math.max(0, a - b);
-      case '×': return Math.round(a * b / 100); // fils * scalar; b treated as JOD scale
-      case '÷': return b === 0 ? a : Math.round(a * 100 / b); // a fils / b fils = ratio
-      default: return a;
-    }
-  };
-
   const handleEquals = () => {
     if (operator === null || leftFils === null) return;
-    const right = parseMoney(display || '0');
-    let result: number;
-    if (operator === '×') {
-      // multiply fils by a plain factor (e.g. 1.5 JOD factor = multiply by the display number)
-      const factor = parseFloat(display || '1');
-      result = Math.round(leftFils * factor);
-    } else if (operator === '÷') {
-      const divisor = parseFloat(display || '1');
-      result = divisor === 0 ? leftFils : Math.round(leftFils / divisor);
-    } else {
-      result = applyOp(leftFils, right, operator);
-    }
+    const result = compute(leftFils, display, operator);
     const dinars = result / 100;
     const str = Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(3).replace(/\.?0+$/, '');
     setDisplay(str);
