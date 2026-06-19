@@ -428,3 +428,25 @@ export async function resetAdminPinViaRecovery(answer: string, newPin: string): 
   
   await logAudit('استرجاع_رمز_مشرف', 'تم استرجاع رمز المشرف عن طريق سؤال الأمان');
 }
+
+export interface DiscountPolicy {
+  enabled: boolean;
+  capType: 'percent' | 'amount';
+  capValue: number; // percent number OR fils, per capType
+}
+
+const DEFAULT_DISCOUNT_POLICY: DiscountPolicy = { enabled: true, capType: 'percent', capValue: 100 };
+
+export async function getDiscountPolicy(): Promise<DiscountPolicy> {
+  const raw = await readSetting('discount_policy');
+  if (!raw) return DEFAULT_DISCOUNT_POLICY;
+  // defensive: fill missing fields from defaults
+  return { ...DEFAULT_DISCOUNT_POLICY, ...raw };
+}
+
+export async function setDiscountPolicy(p: DiscountPolicy): Promise<void> {
+  await writeSetting('discount_policy', p);
+  // log who changed it
+  await logAudit('تعديل_سياسة_الخصم', `مفعّل=${p.enabled} نوع=${p.capType} قيمة=${p.capValue}`, 'setting', 'discount_policy');
+}
+
