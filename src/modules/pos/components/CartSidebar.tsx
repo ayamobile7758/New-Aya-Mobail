@@ -661,8 +661,10 @@ export function CartSidebar() {
           item={discountEditItem}
           onClose={() => setDiscountEditId(null)}
           onApply={fils => {
-            setItemDiscount(discountEditItem.cartItemId, 'amount', fils);
-            setDiscountEditId(null);
+            requireAdminAction(() => {
+              setItemDiscount(discountEditItem.cartItemId, 'amount', fils);
+              setDiscountEditId(null);
+            });
           }}
         />
       )}
