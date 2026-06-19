@@ -737,6 +737,14 @@ export function CartSidebar() {
     longPressTriggeredRef.current = false;
   };
 
+  const handlePayButtonPointerCancel = () => {
+    // Touch interrupted (incoming call, system gesture, scroll-steal): the OS
+    // fires pointercancel, NOT pointerleave. Without this the long-press timer
+    // would survive and fire ~500ms later, opening the dialog as a "ghost" tap.
+    clearLongPressTimer();
+    longPressTriggeredRef.current = false;
+  };
+
   const selectedItem = selectedItemId ? items.find(i => i.cartItemId === selectedItemId) ?? null : null;
   const discountEditItem = discountEditId ? items.find(i => i.cartItemId === discountEditId) ?? null : null;
 
@@ -1113,6 +1121,7 @@ export function CartSidebar() {
               onPointerDown={handlePayButtonPointerDown}
               onPointerUp={handlePayButtonPointerUp}
               onPointerLeave={handlePayButtonPointerLeave}
+              onPointerCancel={handlePayButtonPointerCancel}
               disabled={items.length === 0 || oneTapMutation.isPending}
               style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation', userSelect: 'none' }}
               className="w-full bg-accent text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
