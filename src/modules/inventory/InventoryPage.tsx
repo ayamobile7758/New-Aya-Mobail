@@ -4,6 +4,7 @@ import { getAllProducts } from '@/db/queries/products';
 import { createInventoryCount, getInventoryCounts, createAccountReconciliation } from '@/db/queries/inventory';
 import { getActiveAccounts } from '@/db/queries/accounts';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Search, CheckCircle, PackageSearch, History, Scale } from 'lucide-react';
 import { formatMoney, parseMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -14,52 +15,44 @@ export default function InventoryPage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
-      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-              <PackageSearch className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold">إدارة المخزون والتسويات</h1>
-              <p className="text-sm text-text-secondary">متابعة الأرصدة وجرد المنتجات</p>
-            </div>
-          </div>
-          
-          <div className="flex gap-2 bg-muted p-1 rounded-xl w-fit">
-            <button
-              onClick={() => setActiveTab('new_count')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
-                activeTab === 'new_count' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
-              )}
-            >
-              <PackageSearch className="w-4 h-4" />
-              جرد جديد
-            </button>
-            <button
-              onClick={() => setActiveTab('history')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
-                activeTab === 'history' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
-              )}
-            >
-              <History className="w-4 h-4" />
-              سجل الجرد
-            </button>
-            <button
-              onClick={() => setActiveTab('reconciliation')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
-                activeTab === 'reconciliation' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
-              )}
-            >
-              <Scale className="w-4 h-4" />
-              تسوية حساب
-            </button>
-          </div>
+      <PageHeader
+        icon={PackageSearch}
+        title="إدارة المخزون والتسويات"
+        subtitle="متابعة الأرصدة وجرد المنتجات"
+      >
+        <div className="flex gap-2 bg-muted p-1 rounded-xl w-fit">
+          <button
+            onClick={() => setActiveTab('new_count')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
+              activeTab === 'new_count' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
+            )}
+          >
+            <PackageSearch className="w-4 h-4" />
+            جرد جديد
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
+              activeTab === 'history' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
+            )}
+          >
+            <History className="w-4 h-4" />
+            سجل الجرد
+          </button>
+          <button
+            onClick={() => setActiveTab('reconciliation')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2",
+              activeTab === 'reconciliation' ? "bg-accent text-white shadow-sm" : "text-text-secondary hover:text-text-primary"
+            )}
+          >
+            <Scale className="w-4 h-4" />
+            تسوية حساب
+          </button>
         </div>
-      </header>
+      </PageHeader>
 
       <main className="flex-1 overflow-y-auto p-4 bg-background content-area">
         <div className="max-w-6xl mx-auto">
