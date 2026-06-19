@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { Home, ShoppingCart, Package, DollarSign, ArrowRightLeft, Wrench, BarChart2, Settings } from 'lucide-react';
+import { LayoutDashboard, Store, Package, DollarSign, ArrowRightLeft, Wrench, BarChart2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/ui.store';
 
 const navItems = [
-  { path: '/dashboard', icon: Home, label: 'الرئيسية', requiresPin: true },
-  { path: '/pos', icon: ShoppingCart, label: 'نقطة البيع', requiresPin: false },
+  { path: '/dashboard', icon: LayoutDashboard, label: 'الرئيسية', requiresPin: true },
+  { path: '/pos', icon: Store, label: 'نقطة البيع', requiresPin: false },
   { path: '/products', icon: Package, label: 'المنتجات', requiresPin: false },
   { path: '/inventory', icon: Package, label: 'المخزون', requiresPin: true },
   { path: '/expenses', icon: DollarSign, label: 'المصروفات', requiresPin: true },
