@@ -49,7 +49,7 @@ export default function POSPage() {
       {/* ── Docked Cart Sidebar — RIGHT side (first in RTL flex), always-mode only ── */}
       {isDocked && (
         <div className="flex w-[300px] md:w-[320px] lg:w-[360px] shrink-0 h-full border-e border-border bg-surface shadow-[4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 flex-col">
-          <CartSidebar />
+          <CartSidebar onHideCart={() => setCartOpen(false)} />
         </div>
       )}
 
@@ -69,36 +69,38 @@ export default function POSPage() {
              device the button stays anchored at the bottom-right corner (no longer lifted
              above the docked cart) so closing the cart is always in the same spot.
              The admin-exit button uses `end` (left in RTL), so the two never overlap. ── */}
-      <button
-        onClick={() => setCartOpen(o => !o)}
-        className={cn(
-          "absolute start-2 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-all",
-          // When the cart is OPEN, sit at the very bottom-right corner, level with the
-          // "إتمام البيع" button. When CLOSED, lift it above the bottom nav bar.
-          cartOpen
-            ? "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]"
-            : "bottom-[calc(env(safe-area-inset-bottom)+60px+0.5rem)] md:bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]",
-          pulse && "scale-110"
-        )}
-        style={{ touchAction: 'manipulation' }}
-        aria-label={cartOpen ? "إخفاء السلة" : "إظهار السلة"}
-        title={cartOpen ? "إخفاء السلة" : "إظهار السلة"}
-      >
-        <div className="relative">
-          {cartOpen ? (
-            <Minimize2 className="w-6 h-6" />
-          ) : (
-            <>
-              <ShoppingCart className="w-6 h-6" />
-              {totalItems > 0 && (
-                <span className="absolute -top-2.5 -end-2.5 bg-text-primary text-white text-[11px] min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full border-2 border-background">
-                  {totalItems}
-                </span>
-              )}
-            </>
+      {!cartOpen && (
+        <button
+          onClick={() => setCartOpen(o => !o)}
+          className={cn(
+            "absolute start-2 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center z-[55] hover:opacity-90 transition-all",
+            // When the cart is OPEN, sit at the very bottom-right corner, level with the
+            // "إتمام البيع" button. When CLOSED, lift it above the bottom nav bar.
+            cartOpen
+              ? "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+              : "bottom-[calc(env(safe-area-inset-bottom)+60px+0.5rem)] md:bottom-[calc(env(safe-area-inset-bottom)+0.5rem)]",
+            pulse && "scale-110"
           )}
-        </div>
-      </button>
+          style={{ touchAction: 'manipulation' }}
+          aria-label={cartOpen ? "إخفاء السلة" : "إظهار السلة"}
+          title={cartOpen ? "إخفاء السلة" : "إظهار السلة"}
+        >
+          <div className="relative">
+            {cartOpen ? (
+              <Minimize2 className="w-6 h-6" />
+            ) : (
+              <>
+                <ShoppingCart className="w-6 h-6" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-2.5 -end-2.5 bg-text-primary text-white text-[11px] min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full border-2 border-background">
+                    {totalItems}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </button>
+      )}
 
       {/* ── Cart Overlay — full-screen on phones, sliding side panel on wider screens ── */}
       {isOverlayOpen && (
@@ -131,7 +133,7 @@ export default function POSPage() {
               <h2 className="text-base font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>السلة</h2>
             </div>
             <div className="flex-1 overflow-hidden">
-              <CartSidebar />
+              <CartSidebar onHideCart={() => setCartOpen(false)} />
             </div>
           </div>
         </>

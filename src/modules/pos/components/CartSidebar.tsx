@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney, applyPercent } from '@/lib/money';
-import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift, Calculator } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Tag, Gift, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
 import { toast } from 'sonner';
@@ -606,7 +606,6 @@ export function CalculatorDialog({
   );
 }
 
-/*
 // ─── AmountEntryDialog ────────────────────────────────────────────────────────
 function AmountEntryDialog({
   title,
@@ -701,10 +700,9 @@ function AmountEntryDialog({
     </div>
   );
 }
-*/
 
 // ─── Main CartSidebar ──────────────────────────────────────────────────────────
-export function CartSidebar() {
+export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
   const {
     items, removeItem, updateQuantity, clearCart,
     getSubtotal, getTotalDiscount, getTotal,
@@ -751,15 +749,15 @@ export function CartSidebar() {
   const [confirmClear, setConfirmClear] = useState(false);
 
   // New local states for cash received and bank transfer
-  // const [receivedFils, setReceivedFils] = useState<number | null>(null);
+  const [receivedFils, setReceivedFils] = useState<number | null>(null);
   const [bankFils, setBankFils] = useState<number | null>(null);
-  // const [showReceivedDialog, setShowReceivedDialog] = useState(false);
-  // const [showBankDialog, setShowBankDialog] = useState(false);
+  const [showReceivedDialog, setShowReceivedDialog] = useState(false);
+  const [showBankDialog, setShowBankDialog] = useState(false);
 
   // Reset fields when cart is empty
   useEffect(() => {
     if (items.length === 0) {
-      // setReceivedFils(null);
+      setReceivedFils(null);
       setBankFils(null);
     }
   }, [items.length]);
@@ -787,7 +785,7 @@ export function CartSidebar() {
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
       queryClient.invalidateQueries({ queryKey: ['report'] });
       clearCart();
-      // setReceivedFils(null);
+      setReceivedFils(null);
       setBankFils(null);
       toast.success(`تمت العملية — فاتورة ${data.invoiceNumber}`);
     },
@@ -925,8 +923,6 @@ export function CartSidebar() {
       applyAction();
     }
   };
-
-  const hasGlobalDiscount = globalDiscountValue > 0;
 
   return (
     <>
@@ -1121,109 +1117,217 @@ export function CartSidebar() {
         </div>
 
         {/* ── Bottom fixed zone ── */}
-        <div className="shrink-0 border-t border-border bg-background flex flex-col gap-1.5 p-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
+        <div className="shrink-0 border-t border-border bg-background flex flex-col gap-2.5 p-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
 
-          {/* Totals & Actions Row */}
-          <div className="space-y-1.5">
+          {/* Totals & Actions Rows */}
+          <div className="space-y-2">
             
-            {/* Subtotal & Discount compact row */}
-            <div className="flex justify-between items-center text-xs text-text-secondary px-0.5">
-              <div className="flex items-center gap-1.5">
-                <span style={{ fontFamily: 'Tajawal, sans-serif' }}>المجموع الفرعي:</span>
-                <span className="numeric font-semibold">{formatMoney(getSubtotal())}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
+            {/* ROW 1: Discount, Calculator and optional Hide Cart buttons */}
+            <div className="flex justify-between items-center w-full px-0.5" dir="rtl">
+              <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => setShowGlobalDiscountDialog(true)}
                   disabled={policy?.enabled === false && accessLevel !== 'admin'}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ fontSize: '11px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation' }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ fontSize: '12px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation', height: '32px' }}
                   title="خصم على الفاتورة كاملة"
                 >
-                  <Tag className="w-2.5 h-2.5" />
+                  <Tag className="w-3.5 h-3.5" />
                   <span>خصم</span>
                 </button>
                 
-                {getTotalDiscount() > 0 && (
-                  <div className="flex items-center gap-1">
-                    <span className="numeric text-danger font-bold">− {formatMoney(getTotalDiscount())}</span>
-                    {hasGlobalDiscount && (
-                      <button
-                        onClick={() => setGlobalDiscount('amount', 0)}
-                        className="text-danger hover:bg-danger/10 p-0.5 rounded-full transition-colors flex items-center justify-center"
-                        style={{ touchAction: 'manipulation' }}
-                        title="إلغاء خصم الفاتورة"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowCalculator(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors"
+                  style={{ fontSize: '12px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation', height: '32px' }}
+                  title="آلة حاسبة"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>حاسبة</span>
+                </button>
               </div>
+
+              {onHideCart && (
+                <button
+                  type="button"
+                  onClick={onHideCart}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors"
+                  style={{ fontSize: '12px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation', height: '32px' }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>إخفاء السلة</span>
+                </button>
+              )}
             </div>
 
-            {/* Action bar — qty, price, and calculator */}
-            {!selectedItemId && (
-              <p className="text-[11px] text-text-secondary text-center mb-1.5" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                اختر منتجاً من السلة لتعديل الكمية أو السعر
-              </p>
-            )}
-            <div className="grid grid-cols-3 gap-1.5">
-              {(
-                [
-                  { action: 'qty' as ActionType, label: 'الكمية', Icon: Hash },
-                  { action: 'price' as ActionType, label: 'السعر', Icon: Tag },
-                ] as const
-              ).map(({ action, label, Icon }) => (
-                <button
-                  key={action}
-                  disabled={!selectedItemId}
-                  onClick={() => setActiveAction(action)}
-                  style={{ height: '38px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
-                  className={cn(
-                    'rounded-lg border flex items-center justify-center gap-1 transition-colors bg-surface shadow-sm',
-                    selectedItemId
-                      ? 'border-border text-text-primary hover:bg-muted hover:border-accent'
-                      : 'border-border text-text-secondary opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {label}
-                </button>
-              ))}
-              {/* Calculator button — always enabled */}
+            {/* ROW 2: Received Cash Box & Change Box */}
+            <div className="grid grid-cols-2 gap-2" dir="rtl">
+              {/* Received Cash Box */}
               <button
-                onClick={() => setShowCalculator(true)}
-                style={{ height: '38px', touchAction: 'manipulation', fontFamily: 'Tajawal, sans-serif', fontSize: '13px', fontWeight: 600 }}
-                className="rounded-lg border border-border flex items-center justify-center gap-1 transition-colors bg-surface shadow-sm text-text-primary hover:bg-muted hover:border-accent"
-                aria-label="آلة حاسبة"
+                type="button"
+                onClick={() => setShowReceivedDialog(true)}
+                style={{
+                  background: 'var(--color-surface, white)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  textAlign: 'start',
+                  cursor: 'pointer',
+                  height: '48px',
+                  justifyContent: 'center',
+                }}
+                className="hover:border-accent transition-colors"
               >
-                <Calculator className="w-3.5 h-3.5" />
-                آلة حاسبة
+                <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: 'var(--color-text-secondary)' }}>المبلغ المستلم</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  {receivedFils !== null ? formatMoney(receivedFils) : '—'}
+                </span>
+              </button>
+
+              {/* Change Box */}
+              <button
+                type="button"
+                onClick={() => setShowReceivedDialog(true)}
+                style={{
+                  background: 'var(--color-surface, white)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  textAlign: 'start',
+                  cursor: 'pointer',
+                  height: '48px',
+                  justifyContent: 'center',
+                }}
+                className="hover:border-accent transition-colors"
+              >
+                {(() => {
+                  if (receivedFils === null || receivedFils <= 0) {
+                    return (
+                      <>
+                        <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: 'var(--color-text-secondary)' }}>المتبقي للزبون</span>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>—</span>
+                      </>
+                    );
+                  }
+                  const change = receivedFils - getTotal();
+                  if (change >= 0) {
+                    return (
+                      <>
+                        <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: '#16A34A' }}>الباقي للزبون</span>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: '#16A34A' }}>
+                          {formatMoney(change)}
+                        </span>
+                      </>
+                    );
+                  } else {
+                    return (
+                      <>
+                        <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: '#DC2626' }}>ناقص</span>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: '#DC2626' }}>
+                          {formatMoney(Math.abs(change))}
+                        </span>
+                      </>
+                    );
+                  }
+                })()}
               </button>
             </div>
 
-            {/* Pay button — short tap = one-tap cash sale (if safe), long press = open dialog */}
-            <button
-              onClick={handlePayClick}
-              disabled={items.length === 0 || oneTapMutation.isPending}
-              style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation', userSelect: 'none' }}
-              className="w-full bg-accent text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
-            >
-              {oneTapMutation.isPending ? (
-                <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
-              ) : (
-                <>
-                  <span>إتمام البيع</span>
-                  {items.length > 0 && (
-                    <span className="numeric bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold">
-                      {formatMoney(getTotal())}
-                    </span>
-                  )}
-                </>
-              )}
-            </button>
+            {/* ROW 3: Total Discount Box (Distinct Color) */}
+            <div dir="rtl">
+              <button
+                type="button"
+                onClick={() => setShowGlobalDiscountDialog(true)}
+                disabled={policy?.enabled === false && accessLevel !== 'admin'}
+                style={{
+                  background: getTotalDiscount() > 0 ? '#FEF2F2' : 'var(--color-surface, white)',
+                  border: `1px solid ${getTotalDiscount() > 0 ? '#FECACA' : 'var(--color-border)'}`,
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  textAlign: 'start',
+                  cursor: (policy?.enabled === false && accessLevel !== 'admin') ? 'not-allowed' : 'pointer',
+                  opacity: (policy?.enabled === false && accessLevel !== 'admin') ? 0.5 : 1,
+                  height: '48px',
+                  justifyContent: 'center',
+                  width: '100%',
+                }}
+                className="hover:border-accent transition-colors"
+              >
+                <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: getTotalDiscount() > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>قيمة الخصم الكلي</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: getTotalDiscount() > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>
+                  {getTotalDiscount() > 0 ? `− ${formatMoney(getTotalDiscount())}` : '—'}
+                </span>
+              </button>
+            </div>
+
+            {/* ROW 4: Shrunk Pay Button & Bank Box */}
+            <div className="flex gap-2 w-full animate-fade-in" dir="rtl">
+              {/* Pay Button */}
+              <button
+                onClick={handlePayClick}
+                disabled={items.length === 0 || oneTapMutation.isPending}
+                style={{
+                  flex: '2',
+                  height: '48px',
+                  fontFamily: 'Tajawal, sans-serif',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  touchAction: 'manipulation',
+                }}
+                className="bg-accent text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-1.5"
+              >
+                {oneTapMutation.isPending ? (
+                  <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+                ) : (
+                  <>
+                    <span>إتمام البيع</span>
+                    {items.length > 0 && (
+                      <span className="numeric bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                        {formatMoney(getTotal())}
+                      </span>
+                    )}
+                  </>
+                )}
+              </button>
+
+              {/* Bank Transfer Box */}
+              <button
+                type="button"
+                onClick={() => setShowBankDialog(true)}
+                style={{
+                  flex: '1',
+                  background: bankFils && bankFils > 0 ? '#EFF6FF' : 'var(--color-surface, white)',
+                  border: `1px solid ${bankFils && bankFils > 0 ? '#BFDBFE' : 'var(--color-border)'}`,
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  textAlign: 'start',
+                  cursor: 'pointer',
+                  height: '48px',
+                  justifyContent: 'center',
+                }}
+                className="hover:border-accent transition-colors"
+              >
+                <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: bankFils && bankFils > 0 ? '#1D4ED8' : 'var(--color-text-secondary)' }}>المحوّل للبنك</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 700, color: bankFils && bankFils > 0 ? '#1D4ED8' : 'var(--color-text-primary)' }}>
+                  {bankFils && bankFils > 0 ? formatMoney(bankFils) : '—'}
+                </span>
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -1325,6 +1429,30 @@ export function CartSidebar() {
       {showCalculator && (
         <CalculatorDialog
           onClose={() => setShowCalculator(false)}
+        />
+      )}
+
+      {showReceivedDialog && (
+        <AmountEntryDialog
+          title="المبلغ المستلم"
+          subTitle="أدخل المبلغ المستلم من الزبون"
+          initialValueFils={receivedFils}
+          onClose={() => setShowReceivedDialog(false)}
+          onApply={(fils) => setReceivedFils(fils)}
+        />
+      )}
+
+      {showBankDialog && (
+        <AmountEntryDialog
+          title="المحوّل للبنك"
+          subTitle="أدخل المبلغ المحول للبنك"
+          initialValueFils={bankFils}
+          onClose={() => setShowBankDialog(false)}
+          onApply={(fils) => {
+            const total = getTotal();
+            const clamped = fils > total ? total : fils;
+            setBankFils(clamped);
+          }}
         />
       )}
     </>
