@@ -109,7 +109,7 @@ export default function MaintenancePage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
-      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex justify-between items-start md:items-center">
             <div className="flex items-center gap-3">
@@ -249,16 +249,18 @@ export default function MaintenancePage() {
                           <PackageCheck className="w-3 h-3" /> تسليم للعميل
                         </button>
                       )}
-                      <button 
-                        onClick={() => {
-                          requireAdminAction(() => {
-                             updateStatusMutation.mutate({ id: job.id, status: 'cancelled' });
-                          });
-                        }}
-                        className="px-3 h-11 bg-danger/10 text-danger rounded-lg font-bold text-xs flex items-center gap-1"
-                      >
-                        إلغاء
-                      </button>
+                      {job.status !== 'cancelled' && job.status !== 'delivered' && (
+                        <button 
+                          onClick={() => {
+                            requireAdminAction(() => {
+                               updateStatusMutation.mutate({ id: job.id, status: 'cancelled' });
+                            });
+                          }}
+                          className="px-3 h-11 bg-danger/10 text-danger rounded-lg font-bold text-xs flex items-center gap-1"
+                        >
+                          إلغاء
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

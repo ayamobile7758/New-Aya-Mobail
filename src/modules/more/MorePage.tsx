@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { Package, DollarSign, ArrowRightLeft, FileText, Settings, Archive, Lock, Menu } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PROTECTED = new Set(['/sales', '/inventory', '/expenses', '/operations', '/settings']);
 
@@ -13,10 +14,12 @@ const menus = [
 ];
 
 export default function MorePage() {
+  const { accessLevel } = useAuth();
+
   return (
     <div className="flex flex-col h-full bg-background relative isolate" dir="rtl">
       {/* Header */}
-      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
@@ -40,7 +43,7 @@ export default function MorePage() {
                 to={m.path}
                 className="flex flex-col items-center gap-2 p-4 bg-surface border border-border rounded-xl shadow-sm hover:border-accent transition-colors relative"
               >
-                {PROTECTED.has(m.path) && (
+                {PROTECTED.has(m.path) && accessLevel !== 'admin' && (
                   <div className="absolute top-2 end-2">
                     <Lock className="w-3.5 h-3.5 text-accent opacity-70" />
                   </div>

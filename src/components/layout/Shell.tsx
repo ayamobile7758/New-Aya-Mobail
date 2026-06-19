@@ -43,7 +43,7 @@ export function Shell() {
   }, [accessLevel]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background w-full max-w-[100vw] text-text-primary">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-background w-full max-w-[100vw] text-text-primary">
       {!isPOS && <TopBar />}
       {!isPOS && <PersistenceBanner />}
 

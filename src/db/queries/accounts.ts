@@ -10,6 +10,7 @@ export interface Account {
   fee_percent: number;
   module_scope: string | null;
   is_active: boolean;
+  sort_order: number;
 }
 
 export async function getActiveAccounts(): Promise<Account[]> {

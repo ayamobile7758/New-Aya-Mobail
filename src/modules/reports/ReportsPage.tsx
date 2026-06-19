@@ -203,7 +203,7 @@ export default function ReportsPage() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* ── Header ── */}
-      <header className="bg-surface border-b border-border px-4 pt-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border px-4 pt-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto">
           {/* Title row */}
           <div className="flex items-center justify-between gap-3 mb-4">

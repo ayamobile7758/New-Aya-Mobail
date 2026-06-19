@@ -1,14 +1,16 @@
 import { NavLink } from 'react-router-dom';
-import { Home, ShoppingCart, Wrench, BarChart2, Menu, Lock } from 'lucide-react';
+import { Home, Store, Wrench, BarChart2, Menu, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PROTECTED = new Set(['/dashboard', '/reports']);
 
 export function BottomNav({ className }: { className?: string }) {
+  const { accessLevel } = useAuth();
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'الرئيسية' },
     { path: '/maintenance', icon: Wrench, label: 'الصيانة' },
-    { path: '/pos', icon: ShoppingCart, label: 'نقطة البيع', isCenter: true },
+    { path: '/pos', icon: Store, label: 'نقطة البيع', isCenter: true },
     { path: '/reports', icon: BarChart2, label: 'التقارير' },
     { path: '/more', icon: Menu, label: 'المزيد' },
   ];
@@ -37,7 +39,7 @@ export function BottomNav({ className }: { className?: string }) {
                 <div className="flex flex-col items-center gap-0.5 relative">
                   <div className="relative">
                     <item.icon className={cn("w-6 h-6", isActive && "fill-current/20")} />
-                    {PROTECTED.has(item.path) && (
+                    {PROTECTED.has(item.path) && accessLevel !== 'admin' && (
                       <Lock className="absolute -top-1 -end-1 w-3 h-3 text-accent bg-background rounded-full p-0.5 box-content" />
                     )}
                   </div>

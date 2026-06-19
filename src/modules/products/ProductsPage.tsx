@@ -44,7 +44,7 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       {/* Header */}
-      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex justify-between items-start md:items-center">
             <div className="flex items-center gap-3">
@@ -135,19 +135,20 @@ export default function ProductsPage() {
                       !product.is_active && "opacity-60 grayscale-[50%]"
                     )}
                   >
-                    {!product.is_active && (
-                       <div className="absolute top-2 start-2 bg-danger/10 text-danger text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                         <XCircle className="w-3 h-3" /> متوقف
-                       </div>
-                    )}
-                    {product.is_quick_add && product.is_active && (
-                       <div className="absolute top-2 start-2 bg-success/10 text-success text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                         <CheckCircle className="w-3 h-3" /> سريع
-                       </div>
-                    )}
-
-                    <div className="text-xs text-text-secondary mb-1">{categoryName}</div>
-                    <h3 className="font-bold text-lg leading-tight mb-1 pe-14">{product.name}</h3>
+                    <div className="flex justify-between items-center mb-1.5 gap-2">
+                      <div className="text-xs text-text-secondary">{categoryName}</div>
+                      {product.is_quick_add && product.is_active && (
+                         <div className="bg-success/10 text-success text-[11px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
+                           <CheckCircle className="w-3 h-3" /> سريع
+                         </div>
+                      )}
+                      {!product.is_active && (
+                         <div className="bg-danger/10 text-danger text-[11px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
+                           <XCircle className="w-3 h-3" /> متوقف
+                         </div>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-lg leading-tight mb-1">{product.name}</h3>
                     {product.sku && <div className="text-xs text-text-secondary font-mono bg-muted inline-block px-1.5 rounded mb-3">{product.sku}</div>}
                     
                     <div className="flex justify-between items-end mt-4">

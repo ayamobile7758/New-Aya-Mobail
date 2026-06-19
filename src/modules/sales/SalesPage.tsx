@@ -137,7 +137,7 @@ export default function SalesPage() {
     <div className="flex flex-col h-full bg-background relative isolate">
 
       {/* ── Header + Filter bar ── */}
-      <header className="bg-surface border-b border-border p-4 sticky top-0 z-10 shrink-0">
+      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
         <div className="max-w-6xl mx-auto space-y-3">
 
           {/* Title */}
