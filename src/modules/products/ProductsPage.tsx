@@ -6,6 +6,7 @@ import { Plus, Search, AlertTriangle, CheckCircle, XCircle, Package } from 'luci
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { ProductEditor } from './components/ProductEditor';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function ProductsPage() {
   const [search, setSearch] = useState('');
@@ -44,66 +45,58 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
       {/* Header */}
-      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex justify-between items-start md:items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold">إدارة الأصناف والمستودع</h1>
-                <p className="text-sm text-text-secondary">إدارة المنتجات، الأصناف، والأسعار</p>
-              </div>
-            </div>
-            <button 
-              onClick={handleCreate}
-              className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm shrink-0"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">إضافة صنف</span>
-            </button>
+      <PageHeader
+        icon={Package}
+        title="إدارة الأصناف والمستودع"
+        subtitle="إدارة المنتجات، الأصناف، والأسعار"
+        actions={
+          <button 
+            onClick={handleCreate}
+            className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm shrink-0"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">إضافة صنف</span>
+          </button>
+        }
+      >
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-5 h-5 absolute end-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input 
+              type="text" 
+              placeholder="بحث بالاسم أو الكود (SKU)..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-11 ps-4 pe-10 rounded-xl border border-border bg-background focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+            />
           </div>
-
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-5 h-5 absolute end-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-              <input 
-                type="text" 
-                placeholder="بحث بالاسم أو الكود (SKU)..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-11 ps-4 pe-10 rounded-xl border border-border bg-background focus:border-accent focus:ring-1 focus:ring-accent outline-none"
-              />
-            </div>
-            <div className="flex gap-2 pb-2 md:pb-0 overflow-x-auto hide-scrollbar">
-              {CATEGORIES.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => setCategory(c.id)}
-                  className={cn(
-                    "px-4 h-11 rounded-xl whitespace-nowrap font-medium transition-colors cursor-pointer border shadow-sm shrink-0",
-                    category === c.id 
-                      ? "bg-accent text-white border-transparent" 
-                      : "bg-muted border-transparent text-text-secondary hover:border-accent"
-                  )}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-            <label className="flex items-center gap-2 px-4 h-11 rounded-xl border border-border bg-surface shrink-0 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="accent-accent flex-shrink-0"
-              />
-              <span className="text-sm font-medium">عرض المتوقفة</span>
-            </label>
+          <div className="flex gap-2 pb-2 md:pb-0 overflow-x-auto hide-scrollbar">
+            {CATEGORIES.map(c => (
+              <button
+                key={c.id}
+                onClick={() => setCategory(c.id)}
+                className={cn(
+                  "px-4 h-11 rounded-xl whitespace-nowrap font-medium transition-colors cursor-pointer border shadow-sm shrink-0",
+                  category === c.id 
+                    ? "bg-accent text-white border-transparent" 
+                    : "bg-muted border-transparent text-text-secondary hover:border-accent"
+                )}
+              >
+                {c.name}
+              </button>
+            ))}
           </div>
+          <label className="flex items-center gap-2 px-4 h-11 rounded-xl border border-border bg-surface shrink-0 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="accent-accent flex-shrink-0"
+            />
+            <span className="text-sm font-medium">عرض المتوقفة</span>
+          </label>
         </div>
-      </header>
+      </PageHeader>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4">
