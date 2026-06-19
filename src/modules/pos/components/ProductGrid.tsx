@@ -129,7 +129,7 @@ export function ProductGrid({ onAddExpense, onShowMaint }: ProductGridProps) {
 
             {/* Add Expense */}
             <button
-              onClick={onAddExpense}
+              onClick={() => requireAdminAction(onAddExpense)}
               className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
               title="إضافة مصروف"
               aria-label="إضافة مصروف"
