@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
-import { formatMoney, parseMoney } from '@/lib/money';
+import { formatMoney, parseMoney } from '@/lib/money'; // applyPercent
 import { Plus, Minus, Trash2, ShoppingCart as ShoppingCartIcon, X, Hash, Tag, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useEscKey } from '@/hooks/useEscKey';
 import { useAuth } from '@/contexts/AuthContext';
+import { getDiscountPolicy, type DiscountPolicy } from '@/lib/auth';
 import { SavedCartsTabs } from './SavedCartsTabs';
 
 // ─── ActionType ────────────────────────────────────────────────────────────────
@@ -135,10 +136,15 @@ function LineDiscountDialog({
 }: {
   item: CartItem;
   onClose: () => void;
-  onApply: (fils: number) => void;
+  onApply: (value: number, kind: 'amount' | 'percent') => void;
 }) {
+  const [discountKind, setDiscountKind] = useState<'amount' | 'percent'>(item.discountType || 'amount');
+
   const initDigits = (): string => {
     if (item.discountValue <= 0) return '';
+    if (item.discountType === 'percent') {
+      return String(item.discountValue);
+    }
     const dinars = item.discountValue / 100;
     return Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(2).replace(/\.?0+$/, '');
   };
@@ -147,7 +153,20 @@ function LineDiscountDialog({
   const dialogRef = useFocusTrap(true);
   useEscKey(onClose);
 
+  const handleToggleKind = (kind: 'amount' | 'percent') => {
+    setDiscountKind(kind);
+    setDigits('');
+  };
+
   const handleDigit = (d: string) => {
+    if (discountKind === 'percent') {
+      if (d === '.') return;
+      const next = digits + d;
+      const val = parseInt(next, 10);
+      if (isNaN(val) || val < 0 || val > 100) return;
+      setDigits(next);
+      return;
+    }
     if (d === '.') {
       if (digits.includes('.')) return;
       setDigits(prev => (prev === '' ? '0.' : prev + '.'));
@@ -160,8 +179,13 @@ function LineDiscountDialog({
   };
 
   const handleSubmit = () => {
-    const fils = parseMoney(digits || '0');
-    onApply(Math.max(0, fils));
+    if (discountKind === 'percent') {
+      const pct = parseInt(digits || '0', 10);
+      onApply(isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct)), 'percent');
+    } else {
+      const fils = parseMoney(digits || '0');
+      onApply(Math.max(0, fils), 'amount');
+    }
     onClose();
   };
 
@@ -191,15 +215,43 @@ function LineDiscountDialog({
           {item.product.name}
         </p>
 
+        {/* Toggle option */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => handleToggleKind('percent')}
+            className={cn(
+              "h-9 rounded-lg text-sm font-medium transition-colors border",
+              discountKind === 'percent'
+                ? "bg-text-primary text-white border-transparent"
+                : "bg-surface border-border text-text-secondary hover:border-accent"
+            )}
+          >
+            نسبة %
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleKind('amount')}
+            className={cn(
+              "h-9 rounded-lg text-sm font-medium transition-colors border",
+              discountKind === 'amount'
+                ? "bg-text-primary text-white border-transparent"
+                : "bg-surface border-border text-text-secondary hover:border-accent"
+            )}
+          >
+            مبلغ
+          </button>
+        </div>
+
         <div
           className="w-full text-center mb-4 py-3 rounded-xl bg-muted"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 700, color: '#CF694A', minHeight: '64px' }}
         >
-          {digits ? `${digits} د.أ` : '—'}
+          {digits ? (discountKind === 'percent' ? `${digits}%` : `${digits} د.أ`) : '—'}
         </div>
 
         <NumPad
-          allowDecimal
+          allowDecimal={discountKind === 'amount'}
           onDigit={handleDigit}
           onClear={() => setDigits(prev => prev.slice(0, -1))}
           onSubmit={handleSubmit}
@@ -209,26 +261,46 @@ function LineDiscountDialog({
   );
 }
 
-// ─── Invoice-wide discount dialog (fixed amount in dinars) ────────────────────
+// ─── Invoice-wide discount dialog ─────────────────────────────────────────────
 function GlobalDiscountAmountDialog({
-  currentValueFils,
+  currentValue,
+  currentType,
   onClose,
   onApply,
 }: {
-  currentValueFils: number;
+  currentValue: number;
+  currentType: 'amount' | 'percent';
   onClose: () => void;
-  onApply: (fils: number) => void;
+  onApply: (value: number, kind: 'amount' | 'percent') => void;
 }) {
+  const [discountKind, setDiscountKind] = useState<'amount' | 'percent'>(currentType);
+
   const initDigits = (): string => {
-    if (currentValueFils <= 0) return '';
-    const dinars = currentValueFils / 100;
+    if (currentValue <= 0) return '';
+    if (currentType === 'percent') {
+      return String(currentValue);
+    }
+    const dinars = currentValue / 100;
     return Number.isInteger(dinars) ? String(dinars) : dinars.toFixed(2).replace(/\.?0+$/, '');
   };
 
   const [digits, setDigits] = useState<string>(initDigits);
   useEscKey(onClose);
 
+  const handleToggleKind = (kind: 'amount' | 'percent') => {
+    setDiscountKind(kind);
+    setDigits('');
+  };
+
   const handleDigit = (d: string) => {
+    if (discountKind === 'percent') {
+      if (d === '.') return;
+      const next = digits + d;
+      const val = parseInt(next, 10);
+      if (isNaN(val) || val < 0 || val > 100) return;
+      setDigits(next);
+      return;
+    }
     if (d === '.') {
       if (digits.includes('.')) return;
       setDigits(prev => (prev === '' ? '0.' : prev + '.'));
@@ -241,8 +313,13 @@ function GlobalDiscountAmountDialog({
   };
 
   const handleSubmit = () => {
-    const fils = parseMoney(digits || '0');
-    onApply(Math.max(0, fils));
+    if (discountKind === 'percent') {
+      const pct = parseInt(digits || '0', 10);
+      onApply(isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct)), 'percent');
+    } else {
+      const fils = parseMoney(digits || '0');
+      onApply(Math.max(0, fils), 'amount');
+    }
     onClose();
   };
 
@@ -272,15 +349,43 @@ function GlobalDiscountAmountDialog({
           </button>
         </div>
 
+        {/* Toggle option */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => handleToggleKind('percent')}
+            className={cn(
+              "h-9 rounded-lg text-sm font-medium transition-colors border",
+              discountKind === 'percent'
+                ? "bg-text-primary text-white border-transparent"
+                : "bg-surface border-border text-text-secondary hover:border-accent"
+            )}
+          >
+            نسبة %
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleKind('amount')}
+            className={cn(
+              "h-9 rounded-lg text-sm font-medium transition-colors border",
+              discountKind === 'amount'
+                ? "bg-text-primary text-white border-transparent"
+                : "bg-surface border-border text-text-secondary hover:border-accent"
+            )}
+          >
+            مبلغ ثابت
+          </button>
+        </div>
+
         <div
           className="w-full text-center mb-4 py-3 rounded-xl bg-muted"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 700, color: '#CF694A', minHeight: '64px' }}
         >
-          {digits ? `${digits} د.أ` : '—'}
+          {digits ? (discountKind === 'percent' ? `${digits}%` : `${digits} د.أ`) : '—'}
         </div>
 
         <NumPad
-          allowDecimal
+          allowDecimal={discountKind === 'amount'}
           onDigit={handleDigit}
           onClear={() => setDigits(prev => prev.slice(0, -1))}
           onSubmit={handleSubmit}
@@ -301,14 +406,19 @@ export function CartSidebar() {
   } = useCartStore();
   useSavedCartsStore();
   const cartStore = useCartStore();
-  const { requireAdminActionOnce } = useAuth();
+  const { /* accessLevel, */ requireAdminActionOnce } = useAuth();
+  const [/* policy */, /* setPolicy */] = useState<DiscountPolicy | null>(null);
+
+  useEffect(() => {
+    getDiscountPolicy().then(() => {});
+  }, []);
 
   const [pulse, setPulse] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ActionType | null>(null);
   const [discountEditId, setDiscountEditId] = useState<string | null>(null);
   const [showGlobalDiscountDialog, setShowGlobalDiscountDialog] = useState(false);
-  const [pendingGlobalAmt, setPendingGlobalAmt] = useState<number | null>(null);
+  const [pendingGlobalDiscount, setPendingGlobalDiscount] = useState<{ value: number; kind: 'amount' | 'percent' } | null>(null);
   const [showConflictConfirm, setShowConflictConfirm] = useState(false);
 
   useEffect(() => {
@@ -354,17 +464,17 @@ export function CartSidebar() {
     }
   };
 
-  const handleGlobalDiscountApply = (fils: number) => {
+  const handleGlobalDiscountApply = (value: number, kind: 'amount' | 'percent') => {
     const hasLineDiscounts = items.some(i => !i.isGift && i.discountValue > 0);
-    if (fils > 0 && hasLineDiscounts) {
-      setPendingGlobalAmt(fils);
+    if (value > 0 && hasLineDiscounts) {
+      setPendingGlobalDiscount({ value, kind });
       setShowConflictConfirm(true);
     } else {
-      requireAdminActionOnce(() => setGlobalDiscount('amount', fils));
+      requireAdminActionOnce(() => setGlobalDiscount(kind, value));
     }
   };
 
-  const currentGlobalDiscountFils = globalDiscountType === 'amount' ? globalDiscountValue : 0;
+  const hasGlobalDiscount = globalDiscountValue > 0;
 
   return (
     <>
@@ -581,7 +691,7 @@ export function CartSidebar() {
                 {getTotalDiscount() > 0 && (
                   <div className="flex items-center gap-1">
                     <span className="numeric text-danger font-bold">− {formatMoney(getTotalDiscount())}</span>
-                    {currentGlobalDiscountFils > 0 && (
+                    {hasGlobalDiscount && (
                       <button
                         onClick={() => setGlobalDiscount('amount', 0)}
                         className="text-danger hover:bg-danger/10 p-0.5 rounded-full transition-colors flex items-center justify-center"
@@ -660,9 +770,9 @@ export function CartSidebar() {
         <LineDiscountDialog
           item={discountEditItem}
           onClose={() => setDiscountEditId(null)}
-          onApply={fils => {
+          onApply={(value, kind) => {
             requireAdminActionOnce(() => {
-              setItemDiscount(discountEditItem.cartItemId, 'amount', fils);
+              setItemDiscount(discountEditItem.cartItemId, kind, value);
               setDiscountEditId(null);
             });
           }}
@@ -672,10 +782,11 @@ export function CartSidebar() {
       {/* Invoice-wide discount dialog */}
       {showGlobalDiscountDialog && (
         <GlobalDiscountAmountDialog
-          currentValueFils={currentGlobalDiscountFils}
+          currentValue={globalDiscountValue}
+          currentType={globalDiscountType}
           onClose={() => setShowGlobalDiscountDialog(false)}
-          onApply={fils => {
-            handleGlobalDiscountApply(fils);
+          onApply={(value, kind) => {
+            handleGlobalDiscountApply(value, kind);
             setShowGlobalDiscountDialog(false);
           }}
         />
@@ -689,13 +800,15 @@ export function CartSidebar() {
         confirmLabel="متابعة"
         cancelLabel="إلغاء"
         onConfirm={() => {
-          const amt = pendingGlobalAmt;
-          setPendingGlobalAmt(null);
+          const pending = pendingGlobalDiscount;
+          setPendingGlobalDiscount(null);
           setShowConflictConfirm(false);
-          if (amt !== null) requireAdminActionOnce(() => setGlobalDiscount('amount', amt));
+          if (pending !== null) {
+            requireAdminActionOnce(() => setGlobalDiscount(pending.kind, pending.value));
+          }
         }}
         onCancel={() => {
-          setPendingGlobalAmt(null);
+          setPendingGlobalDiscount(null);
           setShowConflictConfirm(false);
         }}
       />
