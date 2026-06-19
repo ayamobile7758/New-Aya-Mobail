@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getJobs, addJob, updateJobStatus, MaintenanceJob } from '@/db/queries/maintenance';
 import { getActiveAccounts } from '@/db/queries/accounts';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Wrench, Plus, CheckCircle, PackageCheck, Phone, X, Search } from 'lucide-react';
 import { formatMoney, parseMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -109,70 +110,62 @@ export default function MaintenancePage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
-      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex justify-between items-start md:items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-                <Wrench className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold">صيانة الأجهزة</h1>
-                <p className="text-sm text-text-secondary">متابعة وإصلاح أجهزة العملاء</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setIsAddMode(true)}
-              className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm shrink-0"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">استلام جهاز جديد</span>
-            </button>
+      <PageHeader
+        icon={Wrench}
+        title="صيانة الأجهزة"
+        subtitle="متابعة وإصلاح أجهزة العملاء"
+        actions={
+          <button 
+            onClick={() => setIsAddMode(true)}
+            className="bg-accent text-white px-4 h-10 rounded-lg font-medium flex items-center gap-2 hover:bg-accent-hover transition-colors shadow-sm shrink-0"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">استلام جهاز جديد</span>
+          </button>
+        }
+      >
+        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+          <div className="relative max-w-sm flex-1">
+            <Search className="w-5 h-5 absolute end-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input 
+              type="text" 
+              placeholder="بحث برقم الوصل، اسم العميل، نوع الجهاز..." 
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-full h-11 box-border ps-4 pe-10 rounded-xl border border-border bg-background focus:border-accent outline-none"
+            />
           </div>
+          
+          {/* Mobile status select dropdown */}
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="sm:hidden h-11 box-border w-full rounded-xl border border-border bg-surface px-3 font-medium outline-none focus:border-accent text-text-secondary"
+          >
+            {['all', 'new', 'in_progress', 'ready', 'delivered', 'cancelled'].map((s) => (
+              <option key={s} value={s}>
+                {s === 'all' ? 'الكل' : STATUS_MAP[s as keyof typeof STATUS_MAP].label}
+              </option>
+            ))}
+          </select>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="relative max-w-sm flex-1">
-              <Search className="w-5 h-5 absolute end-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-              <input 
-                type="text" 
-                placeholder="بحث برقم الوصل، اسم العميل، نوع الجهاز..." 
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                className="w-full h-11 box-border ps-4 pe-10 rounded-xl border border-border bg-background focus:border-accent outline-none"
-              />
-            </div>
-            
-            {/* Mobile status select dropdown */}
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="sm:hidden h-11 box-border w-full rounded-xl border border-border bg-surface px-3 font-medium outline-none focus:border-accent text-text-secondary"
-            >
-              {['all', 'new', 'in_progress', 'ready', 'delivered', 'cancelled'].map((s) => (
-                <option key={s} value={s}>
-                  {s === 'all' ? 'الكل' : STATUS_MAP[s as keyof typeof STATUS_MAP].label}
-                </option>
-              ))}
-            </select>
-
-            {/* Desktop status tabs */}
-            <div className="hidden sm:flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-              {['all', 'new', 'in_progress', 'ready', 'delivered', 'cancelled'].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setFilter(s)}
-                  className={cn(
-                    "px-4 h-11 rounded-xl whitespace-nowrap font-medium transition-colors border shadow-sm",
-                    filter === s ? "bg-text-primary text-white border-transparent" : "bg-surface border-border text-text-secondary hover:border-accent"
-                  )}
-                >
-                  {s === 'all' ? 'الكل' : STATUS_MAP[s as keyof typeof STATUS_MAP].label}
-                </button>
-              ))}
-            </div>
+          {/* Desktop status tabs */}
+          <div className="hidden sm:flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+            {['all', 'new', 'in_progress', 'ready', 'delivered', 'cancelled'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={cn(
+                  "px-4 h-11 rounded-xl whitespace-nowrap font-medium transition-colors border shadow-sm",
+                  filter === s ? "bg-text-primary text-white border-transparent" : "bg-surface border-border text-text-secondary hover:border-accent"
+                )}
+              >
+                {s === 'all' ? 'الكل' : STATUS_MAP[s as keyof typeof STATUS_MAP].label}
+              </button>
+            ))}
           </div>
         </div>
-      </header>
+      </PageHeader>
 
       <main className="flex-1 overflow-y-auto p-4 content-area">
         <div className="max-w-6xl mx-auto">
