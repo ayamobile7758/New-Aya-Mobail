@@ -1152,8 +1152,22 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
           {/* Totals & Actions Rows */}
           <div className="space-y-2">
             
-            {/* ROW 1: Discount, Calculator and optional Hide Cart buttons */}
+            {/* ROW 1: Hide Cart (right) + Discount/Calculator buttons (left) */}
             <div className="flex justify-between items-center w-full px-0.5" dir="rtl">
+              {onHideCart ? (
+                <button
+                  type="button"
+                  onClick={onHideCart}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors"
+                  style={{ fontSize: '12px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation', height: '32px' }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>إخفاء السلة</span>
+                </button>
+              ) : (
+                <span />
+              )}
+
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1166,7 +1180,7 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
                   <Tag className="w-3.5 h-3.5" />
                   <span>خصم</span>
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={() => setShowCalculator(true)}
@@ -1178,22 +1192,10 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
                   <span>حاسبة</span>
                 </button>
               </div>
-
-              {onHideCart && (
-                <button
-                  type="button"
-                  onClick={onHideCart}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent bg-surface transition-colors"
-                  style={{ fontSize: '12px', fontFamily: 'Tajawal, sans-serif', touchAction: 'manipulation', height: '32px' }}
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>إخفاء السلة</span>
-                </button>
-              )}
             </div>
 
-            {/* ROW 2: Received Cash Box & Change Box */}
-            <div className="grid grid-cols-2 gap-2" dir="rtl">
+            {/* ROW 2: Received · Change · Discount boxes */}
+            <div className="grid grid-cols-3 gap-2" dir="rtl">
               {/* Received Cash Box */}
               <button
                 type="button"
@@ -1269,10 +1271,8 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
                   }
                 })()}
               </button>
-            </div>
 
-            {/* ROW 3: Total Discount Box (Distinct Color) */}
-            <div dir="rtl">
+              {/* Total Discount Box (Distinct Color) */}
               <button
                 type="button"
                 onClick={() => setShowGlobalDiscountDialog(true)}
@@ -1290,18 +1290,17 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
                   opacity: (policy?.enabled === false && accessLevel !== 'admin') ? 0.5 : 1,
                   height: '48px',
                   justifyContent: 'center',
-                  width: '100%',
                 }}
                 className="hover:border-accent transition-colors"
               >
-                <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: getTotalDiscount() > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>قيمة الخصم الكلي</span>
+                <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '10px', color: getTotalDiscount() > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>الخصم</span>
                 <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 700, color: getTotalDiscount() > 0 ? '#DC2626' : 'var(--color-text-secondary)' }}>
                   {getTotalDiscount() > 0 ? `− ${formatMoney(getTotalDiscount())}` : '—'}
                 </span>
               </button>
             </div>
 
-            {/* ROW 4: Shrunk Pay Button & Bank Box */}
+            {/* ROW 3: Shrunk Pay Button & Bank Box */}
             <div className="flex gap-2 w-full animate-fade-in" dir="rtl">
               {/* Pay Button */}
               <button
