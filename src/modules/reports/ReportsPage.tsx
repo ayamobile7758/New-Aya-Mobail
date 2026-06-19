@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { DiscountsGiftsTab } from './DiscountsGiftsTab';
 import { ProfitLossTab } from './ProfitLossTab';
 import { exportInvoicesCSV, exportExpensesCSV, exportTopupsCSV, exportMaintenanceCSV } from '@/lib/csv-export';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const ReactECharts = lazy(() => import('echarts-for-react'));
 
@@ -203,131 +204,141 @@ export default function ReportsPage() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* ── Header ── */}
-      <header className="bg-surface border-b border-border px-4 pt-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto">
-          {/* Title row */}
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>التقارير التحليلية</h1>
-                <p className="text-sm text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>{periodLabel}</p>
-              </div>
+      <PageHeader
+        icon={BarChart3}
+        title="التقارير التحليلية"
+        subtitle={periodLabel}
+        actions={
+          <>
+            <button
+              onClick={() => refetch()}
+              className="p-2.5 text-text-secondary hover:bg-muted rounded-lg transition-colors"
+              title="تحديث"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleExportExcel}
+              disabled={!report || isLoading}
+              className="h-10 px-4 bg-success text-white font-medium text-sm rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+          </>
+        }
+      >
+        {/* Period picker — hidden for P&L tab (it manages its own period) */}
+        <div className={cn('flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 flex-wrap', activeTab === 'pnl' && 'hidden')}>
+          {([
+            { id: 'today', label: 'اليوم' },
+            { id: 'week', label: 'هذا الأسبوع' },
+            { id: 'month', label: 'هذا الشهر' },
+            { id: 'custom', label: 'فترة مخصصة' },
+          ] as const).map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              style={{ fontSize: '13px' }}
+              className={cn(
+                'px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap transition-colors',
+                period === p.id
+                  ? 'bg-accent text-white border-accent'
+                  : 'border-border text-text-secondary hover:border-accent hover:text-accent'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+          {period === 'custom' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="h-8 px-2 text-sm rounded-lg border border-border bg-background focus:border-accent outline-none"
+                dir="ltr"
+              />
+              <span className="text-text-secondary text-sm">←</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                className="h-8 px-2 text-sm rounded-lg border border-border bg-background focus:border-accent outline-none"
+                dir="ltr"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => refetch()}
-                className="p-2.5 text-text-secondary hover:bg-muted rounded-lg transition-colors"
-                title="تحديث"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleExportExcel}
-                disabled={!report || isLoading}
-                className="h-11 box-border px-3 bg-success text-white font-bold text-sm rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
-                style={{ fontFamily: 'Tajawal, sans-serif' }}
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Excel</span>
-              </button>
-            </div>
-          </div>
+          )}
+        </div>
 
-          {/* Period picker — hidden for P&L tab (it manages its own period) */}
-          <div className={cn('flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 flex-wrap', activeTab === 'pnl' && 'hidden')}>
-            {([
-              { id: 'today', label: 'اليوم' },
-              { id: 'week', label: 'هذا الأسبوع' },
-              { id: 'month', label: 'هذا الشهر' },
-              { id: 'custom', label: 'فترة مخصصة' },
-            ] as const).map(p => (
+        {/* CSV Exports */}
+        <div className={cn('flex flex-wrap gap-2 my-2 pb-3 border-b border-dashed border-border', activeTab === 'pnl' && 'hidden')}>
+          <button
+            onClick={() => exportInvoicesCSV(from, to)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+          >
+            <Download className="w-3.5 h-3.5" />
+            تصدير المبيعات (CSV)
+          </button>
+          <button
+            onClick={() => exportExpensesCSV(from, to)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+          >
+            <Download className="w-3.5 h-3.5" />
+            تصدير المصروفات (CSV)
+          </button>
+          <button
+            onClick={() => exportTopupsCSV(from, to)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+          >
+            <Download className="w-3.5 h-3.5" />
+            تصدير الشحن (CSV)
+          </button>
+          <button
+            onClick={() => exportMaintenanceCSV(from, to)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+          >
+            <Download className="w-3.5 h-3.5" />
+            تصدير الصيانة (CSV)
+          </button>
+        </div>
+
+        {/* Desktop/Tablet Tabs — Show all 7 */}
+        <div className="hidden md:flex overflow-x-auto no-scrollbar gap-1 border-b border-border -mx-4 px-4">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
               <button
-                key={p.id}
-                onClick={() => setPeriod(p.id)}
-                style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{ fontSize: '13px' }}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap transition-colors',
-                  period === p.id
-                    ? 'bg-accent text-white border-accent'
-                    : 'border-border text-text-secondary hover:border-accent hover:text-accent'
+                  'flex items-center gap-1.5 px-4 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors shrink-0',
+                  isActive ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary'
                 )}
               >
-                {p.label}
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
               </button>
-            ))}
-            {period === 'custom' && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  className="h-8 px-2 text-sm rounded-lg border border-border bg-background focus:border-accent outline-none"
-                  dir="ltr"
-                />
-                <span className="text-text-secondary text-sm">←</span>
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  className="h-8 px-2 text-sm rounded-lg border border-border bg-background focus:border-accent outline-none"
-                  dir="ltr"
-                />
-              </div>
-            )}
-          </div>
+            );
+          })}
+        </div>
 
-          {/* CSV Exports */}
-          <div className={cn('flex flex-wrap gap-2 my-2 pb-3 border-b border-dashed border-border', activeTab === 'pnl' && 'hidden')}>
-            <button
-              onClick={() => exportInvoicesCSV(from, to)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-              style={{ fontFamily: 'Tajawal, sans-serif' }}
-            >
-              <Download className="w-3.5 h-3.5" />
-              تصدير المبيعات (CSV)
-            </button>
-            <button
-              onClick={() => exportExpensesCSV(from, to)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-              style={{ fontFamily: 'Tajawal, sans-serif' }}
-            >
-              <Download className="w-3.5 h-3.5" />
-              تصدير المصروفات (CSV)
-            </button>
-            <button
-              onClick={() => exportTopupsCSV(from, to)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-              style={{ fontFamily: 'Tajawal, sans-serif' }}
-            >
-              <Download className="w-3.5 h-3.5" />
-              تصدير الشحن (CSV)
-            </button>
-            <button
-              onClick={() => exportMaintenanceCSV(from, to)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-              style={{ fontFamily: 'Tajawal, sans-serif' }}
-            >
-              <Download className="w-3.5 h-3.5" />
-              تصدير الصيانة (CSV)
-            </button>
-          </div>
-
-          {/* Desktop/Tablet Tabs — Show all 7 */}
-          <div className="hidden md:flex overflow-x-auto no-scrollbar gap-1 border-b border-border -mx-4 px-4">
-            {tabs.map(tab => {
+        {/* Mobile Tabs — Show 4 + More Dropdown */}
+        <div className="md:hidden flex relative overflow-visible border-b border-border -mx-4 px-4 justify-between items-center bg-surface">
+          <div className="flex gap-1 overflow-visible">
+            {tabs.slice(0, 4).map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}
+                  style={{ fontSize: '12px' }}
                   className={cn(
-                    'flex items-center gap-1.5 px-4 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors shrink-0',
-                    isActive ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary'
+                    'flex items-center gap-1 px-2 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors shrink-0',
+                    isActive ? 'border-accent text-accent' : 'border-transparent text-text-secondary'
                   )}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -337,77 +348,53 @@ export default function ReportsPage() {
             })}
           </div>
 
-          {/* Mobile Tabs — Show 4 + More Dropdown */}
-          <div className="md:hidden flex relative overflow-visible border-b border-border -mx-4 px-4 justify-between items-center bg-surface">
-            <div className="flex gap-1 overflow-visible">
-              {tabs.slice(0, 4).map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px' }}
-                    className={cn(
-                      'flex items-center gap-1 px-2 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors shrink-0',
-                      isActive ? 'border-accent text-accent' : 'border-transparent text-text-secondary'
-                    )}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* More Menu */}
-            <div className="relative overflow-visible shrink-0">
-              <button
-                onClick={() => setIsMoreOpen(o => !o)}
-                style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '12px' }}
-                className={cn(
-                  'flex items-center gap-1 px-2.5 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors',
-                  ['expenses', 'discounts', 'pnl'].includes(activeTab)
-                    ? 'border-accent text-accent'
-                    : 'border-transparent text-text-secondary'
-                )}
-              >
-                <span>المزيد</span>
-                <span className="text-[9px]">▼</span>
-              </button>
-
-              {isMoreOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsMoreOpen(false)} />
-                  <div className="absolute end-0 mt-1 w-44 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                    {tabs.slice(4).map(tab => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => {
-                            setActiveTab(tab.id);
-                            setIsMoreOpen(false);
-                          }}
-                          style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '13px' }}
-                          className={cn(
-                            'w-full flex items-center gap-2 px-4 py-2.5 text-start font-medium transition-colors hover:bg-muted/50',
-                            isActive ? 'text-accent bg-accent/5' : 'text-text-secondary'
-                          )}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span>{tab.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
+          {/* More Menu */}
+          <div className="relative overflow-visible shrink-0">
+            <button
+              onClick={() => setIsMoreOpen(o => !o)}
+              style={{ fontSize: '12px' }}
+              className={cn(
+                'flex items-center gap-1 px-2.5 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors',
+                ['expenses', 'discounts', 'pnl'].includes(activeTab)
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-text-secondary'
               )}
-            </div>
+            >
+              <span>المزيد</span>
+              <span className="text-[9px]">▼</span>
+            </button>
+
+            {isMoreOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsMoreOpen(false)} />
+                <div className="absolute end-0 mt-1 w-44 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {tabs.slice(4).map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id);
+                          setIsMoreOpen(false);
+                        }}
+                        style={{ fontSize: '13px' }}
+                        className={cn(
+                          'w-full flex items-center gap-2 px-4 py-2.5 text-start font-medium transition-colors hover:bg-muted/50',
+                          isActive ? 'text-accent bg-accent/5' : 'text-text-secondary'
+                        )}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </header>
+      </PageHeader>
 
       {/* ── Content ── */}
       <main className="flex-1 overflow-y-auto p-4">
