@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { getDailySummary } from '@/db/queries/operations';
 import { getActiveAccounts } from '@/db/queries/accounts';
 import { getLowStockProducts } from '@/db/queries/products';
@@ -96,25 +97,19 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full bg-background relative isolate">
+      <PageHeader
+        icon={LayoutDashboard}
+        title="مرحباً بك في لوحة القيادة"
+        subtitle="نظرة عامة على نشاط متجرك اليوم"
+        actions={
+          <div className="text-xs text-text-secondary font-medium numeric bg-surface border border-border px-3 py-1.5 rounded-lg shadow-sm">
+            {format(new Date(), 'dd/MM/yyyy')}
+          </div>
+        }
+      />
       {/* Scrollable Dashboard Body */}
       <main className="flex-1 overflow-y-auto p-4 content-area">
         <div className="max-w-6xl mx-auto space-y-5 w-full pb-16">
-
-          {/* Welcome Header - Scrolls away naturally */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border/60 gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-                <LayoutDashboard className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold">مرحباً بك في لوحة القيادة</h1>
-                <p className="text-xs sm:text-sm text-text-secondary">نظرة عامة على نشاط متجرك اليوم</p>
-              </div>
-            </div>
-            <div className="text-xs text-text-secondary font-medium numeric self-start sm:self-center bg-surface border border-border px-3 py-1.5 rounded-lg shadow-sm">
-              {format(new Date(), 'dd/MM/yyyy')}
-            </div>
-          </div>
 
           {/* Start POS Big Action */}
           <section className="bg-gradient-to-r from-accent to-accent/80 rounded-2xl p-4 sm:p-6 md:p-8 text-white relative overflow-hidden shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
