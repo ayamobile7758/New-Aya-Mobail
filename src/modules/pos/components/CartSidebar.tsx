@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useCartStore, CartItem, calculateItemLineTotal } from '@/stores/cart.store';
 import { useSavedCartsStore } from '@/stores/savedCarts.store';
 import { formatMoney, parseMoney, applyPercent } from '@/lib/money';
@@ -7,12 +7,14 @@ import { cn } from '@/lib/utils';
 import { PaymentDialog, SuccessDialog } from './PaymentDialog';
 import { toast } from 'sonner';
 import { NumPad } from '@/components/ui/NumPad';
-import { useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useEscKey } from '@/hooks/useEscKey';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDiscountPolicy, type DiscountPolicy } from '@/lib/auth';
+import { completeSale } from '@/db/queries/sales';
+import { getActiveAccounts } from '@/db/queries/accounts';
 import { SavedCartsTabs } from './SavedCartsTabs';
 
 // ─── ActionType ────────────────────────────────────────────────────────────────
@@ -396,7 +398,7 @@ function GlobalDiscountAmountDialog({
 }
 
 // ─── Calculator dialog ────────────────────────────────────────────────────────
-function CalculatorDialog({
+export function CalculatorDialog({
   onClose,
   onTransferToCash,
 }: {
@@ -650,6 +652,90 @@ export function CartSidebar() {
     isOpen: false, invoiceId: '', invoiceNumber: '', change: 0,
   });
   const [confirmClear, setConfirmClear] = useState(false);
+
+  // Part C: one-tap mutation — same completeSale call the PaymentDialog uses
+  const queryClient = useQueryClient();
+  const { data: cashAccounts = [] } = useQuery({
+    queryKey: ['active-accounts'],
+    queryFn: getActiveAccounts,
+    staleTime: 30_000, // avoid re-fetching on every render
+  });
+  const defaultCashAccount = cashAccounts.find(a => a.type === 'cash') ?? null;
+
+  const oneTapMutation = useMutation({
+    mutationFn: (accountId: string) =>
+      completeSale({
+        cartItems: items,
+        subtotal: getSubtotal(),
+        totalDiscount: getTotalDiscount(),
+        totalAmount: getTotal(),
+        payments: [{ accountId, amount: getTotal() }],
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['active-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+      // Route through Part-4a logic: change is always 0 on exact-amount one-tap
+      clearCart();
+      toast.success(`تمت العملية — فاتورة ${data.invoiceNumber}`);
+    },
+    onError: (err: any) => {
+      toast.error('حدث خطأ أثناء حفظ الفاتورة: ' + err.message);
+    },
+  });
+
+  // Part C: long-press gesture state
+  const LONG_PRESS_MS = 500;
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => { return () => { clearLongPressTimer(); }; }, []);
+
+  // SAFE = has a default cash account AND cart is non-empty AND total > 0
+  const isSafeForOneTap = defaultCashAccount !== null && items.length > 0 && getTotal() > 0;
+
+  const handlePayButtonPointerDown = () => {
+    if (oneTapMutation.isPending) return;
+    longPressTriggeredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      // Long press: open the full PaymentDialog
+      longPressTriggeredRef.current = true;
+      clearLongPressTimer();
+      if (items.length > 0) setIsPaymentOpen(true);
+    }, LONG_PRESS_MS);
+  };
+
+  const handlePayButtonPointerUp = () => {
+    if (longPressTriggeredRef.current) {
+      // Already handled by the long-press timer — do nothing on release
+      longPressTriggeredRef.current = false;
+      return;
+    }
+    clearLongPressTimer();
+    // Short tap
+    if (oneTapMutation.isPending) return;
+    if (isSafeForOneTap) {
+      oneTapMutation.mutate(defaultCashAccount!.id);
+    } else {
+      // Fallback: open dialog (e.g. no cash account, zero total)
+      if (items.length > 0) setIsPaymentOpen(true);
+    }
+  };
+
+  const handlePayButtonPointerLeave = () => {
+    // Pointer left the button while held: cancel any pending gesture, no action
+    clearLongPressTimer();
+    longPressTriggeredRef.current = false;
+  };
 
   const selectedItem = selectedItemId ? items.find(i => i.cartItemId === selectedItemId) ?? null : null;
   const discountEditItem = discountEditId ? items.find(i => i.cartItemId === discountEditId) ?? null : null;
@@ -1022,18 +1108,26 @@ export function CartSidebar() {
               </button>
             </div>
 
-            {/* Pay button with total embedded */}
+            {/* Pay button — short tap = one-tap cash sale (if safe), long press = open dialog */}
             <button
-              onClick={() => { if (items.length > 0) setIsPaymentOpen(true); }}
-              disabled={items.length === 0}
-              style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation' }}
+              onPointerDown={handlePayButtonPointerDown}
+              onPointerUp={handlePayButtonPointerUp}
+              onPointerLeave={handlePayButtonPointerLeave}
+              disabled={items.length === 0 || oneTapMutation.isPending}
+              style={{ height: '52px', fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontWeight: 'bold', touchAction: 'manipulation', userSelect: 'none' }}
               className="w-full bg-accent text-white rounded-lg disabled:opacity-50 disabled:bg-muted disabled:text-text-secondary hover:opacity-90 transition-opacity shadow-md flex items-center justify-center gap-2"
             >
-              <span>إتمام البيع</span>
-              {items.length > 0 && (
-                <span className="numeric bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold">
-                  {formatMoney(getTotal())}
-                </span>
+              {oneTapMutation.isPending ? (
+                <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+              ) : (
+                <>
+                  <span>إتمام البيع</span>
+                  {items.length > 0 && (
+                    <span className="numeric bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold">
+                      {formatMoney(getTotal())}
+                    </span>
+                  )}
+                </>
               )}
             </button>
           </div>
