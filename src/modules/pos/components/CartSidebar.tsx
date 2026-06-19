@@ -1004,7 +1004,25 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span style={{ minWidth: '20px', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 700, color: '#CF694A' }}>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedItemId(item.cartItemId);
+                          setActiveAction('qty');
+                        }}
+                        style={{
+                          minWidth: '20px',
+                          textAlign: 'center',
+                          fontFamily: 'Inter, sans-serif',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: '#CF694A',
+                          cursor: 'pointer',
+                          padding: '2px 6.5px',
+                          borderRadius: '4px',
+                        }}
+                        className="hover:bg-muted-foreground/10 transition-colors"
+                      >
                         {item.quantity}
                       </span>
                       <button
@@ -1026,20 +1044,32 @@ export function CartSidebar({ onHideCart }: { onHideCart?: () => void }) {
                   {/* ── Row 2: Price box · Discount box · Gift toggle ── */}
                   <div className="flex items-center gap-1.5 mt-2" onClick={e => e.stopPropagation()}>
 
-                    {/* Price display box */}
-                    <div style={{
-                      flex: '1', minWidth: 0,
-                      background: 'var(--color-surface, white)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '7px',
-                      padding: '3px 6px',
-                      display: 'flex', flexDirection: 'column',
-                    }}>
+                    {/* Price display box — tappable */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedItemId(item.cartItemId);
+                        setActiveAction('price');
+                      }}
+                      style={{
+                        flex: '1', minWidth: 0,
+                        background: 'var(--color-surface, white)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '7px',
+                        padding: '3px 6px',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        cursor: 'pointer',
+                        textAlign: 'start',
+                      }}
+                      className="hover:border-accent transition-colors"
+                    >
                       <span style={{ fontFamily: 'Tajawal, sans-serif', fontSize: '9px', color: 'var(--color-text-secondary)' }}>سعر الوحدة</span>
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 600, textDecoration: item.isGift ? 'line-through' : 'none', opacity: item.isGift ? 0.5 : 1 }}>
                         {formatMoney(unitPrice)}
                       </span>
-                    </div>
+                    </button>
 
                     {item.isGift ? (
                       <div
