@@ -29,11 +29,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getActiveAccounts } from '@/db/queries/accounts';
 import { completeSale, getInvoiceWithItems } from '@/db/queries/sales';
 import { formatMoney, parseMoney } from '@/lib/money';
-import { X, CheckCircle, FileText, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { X, CheckCircle, FileText, Plus, Trash2, ChevronDown, Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { NumPad } from '@/components/ui/NumPad';
 import { cn } from '@/lib/utils';
+import { CalculatorDialog } from './CartSidebar';
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -65,6 +66,7 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [cashReceivedInput, setCashReceivedInput] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showCalc, setShowCalc] = useState(false); // Part B: calculator in cash section
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['active-accounts'],
@@ -94,6 +96,7 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
       setShowAdvanced(false);
       setCashReceivedInput('');
       setSelectedQuickAccountId(null); // Part 2: reset to default on open
+      setShowCalc(false); // Part B: reset on open
       if (accounts.length > 0) {
         setPayments([{
           id: nanoid(),
@@ -409,9 +412,22 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
               {/* Cash received + NumPad */}
               {cashIncluded && (
                 <div className="mb-4 bg-background border border-border rounded-xl p-4">
-                  <label className="block font-medium mb-2 text-sm" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                    المبلغ المستلم نقداً
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block font-medium text-sm" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+                      المبلغ المستلم نقداً
+                    </label>
+                    {/* Part B: calculator button inside cash section */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCalc(true)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-surface text-text-secondary hover:border-accent hover:text-accent text-xs transition-colors"
+                      style={{ fontFamily: 'Tajawal, sans-serif' }}
+                      aria-label="آلة حاسبة"
+                    >
+                      <Calculator className="w-3 h-3" />
+                      آلة
+                    </button>
+                  </div>
                   <div className="bg-muted rounded-xl py-3 px-4 mb-3 flex items-center justify-between">
                     <span className="text-text-secondary text-sm">د.أ</span>
                     <span className="text-2xl font-bold numeric tracking-wide">
@@ -461,6 +477,17 @@ export function PaymentDialog({ isOpen, onClose, onSuccess }: PaymentDialogProps
                     />
                   </div>
                 </div>
+              )}
+
+              {/* Part B: CalculatorDialog opened from cash section */}
+              {showCalc && (
+                <CalculatorDialog
+                  onClose={() => setShowCalc(false)}
+                  onTransferToCash={(val) => {
+                    setCashReceivedInput(val);
+                    setShowCalc(false);
+                  }}
+                />
               )}
             </>
           )}
