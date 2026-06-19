@@ -17,7 +17,9 @@ interface AuthContextType {
   exitAdmin: () => Promise<void>;
   lockNow: () => Promise<void>;
   requireAdminAction: (callback: () => void) => void;
+  requireAdminActionOnce: (callback: () => void) => void;
   pendingAdminAction: (() => void) | null;
+  pendingIsOneShot: boolean;
   clearPendingAdminAction: () => void;
 }
 
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessLevel, setAccessLevel] = useState<AccessLevel>('locked');
   const [pendingAdminAction, setPendingAdminAction] = useState<(() => void) | null>(null);
+  const [pendingIsOneShot, setPendingIsOneShot] = useState(false);
   const [needsDefaultChange, setNeedsDefaultChange] = useState<boolean>(false);
   const [isReady, setIsReady] = useState(false);
   
@@ -124,8 +127,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const requireAdminActionOnce = (callback: () => void) => {
+    if (accessLevel === 'admin') {
+      callback();
+      return;
+    }
+    setPendingIsOneShot(true);
+    setPendingAdminAction(() => callback);
+  };
+
   const clearPendingAdminAction = () => {
     setPendingAdminAction(null);
+    setPendingIsOneShot(false);
   };
 
   if (!isReady) {
@@ -145,7 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       exitAdmin,
       lockNow,
       requireAdminAction,
+      requireAdminActionOnce,
       pendingAdminAction,
+      pendingIsOneShot,
       clearPendingAdminAction
     }}>
       {children}

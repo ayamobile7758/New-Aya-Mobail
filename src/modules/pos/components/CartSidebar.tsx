@@ -301,7 +301,7 @@ export function CartSidebar() {
   } = useCartStore();
   useSavedCartsStore();
   const cartStore = useCartStore();
-  const { requireAdminAction } = useAuth();
+  const { requireAdminActionOnce } = useAuth();
 
   const [pulse, setPulse] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -350,7 +350,7 @@ export function CartSidebar() {
       if (!isNaN(val)) updateQuantity(selectedItemId, Math.max(1, val));
     } else if (action === 'price') {
       const fils = parseMoney(raw);
-      requireAdminAction(() => setItemPrice(selectedItemId, Math.max(0, fils)));
+      requireAdminActionOnce(() => setItemPrice(selectedItemId, Math.max(0, fils)));
     }
   };
 
@@ -360,7 +360,7 @@ export function CartSidebar() {
       setPendingGlobalAmt(fils);
       setShowConflictConfirm(true);
     } else {
-      requireAdminAction(() => setGlobalDiscount('amount', fils));
+      requireAdminActionOnce(() => setGlobalDiscount('amount', fils));
     }
   };
 
@@ -528,7 +528,7 @@ export function CartSidebar() {
 
                     {/* Gift toggle */}
                     <button
-                      onClick={() => requireAdminAction(() => setItemGift(item.cartItemId, !item.isGift))}
+                      onClick={() => requireAdminActionOnce(() => setItemGift(item.cartItemId, !item.isGift))}
                       style={{
                         flexShrink: 0,
                         background: item.isGift ? '#DCFCE7' : 'var(--color-surface, white)',
@@ -661,7 +661,7 @@ export function CartSidebar() {
           item={discountEditItem}
           onClose={() => setDiscountEditId(null)}
           onApply={fils => {
-            requireAdminAction(() => {
+            requireAdminActionOnce(() => {
               setItemDiscount(discountEditItem.cartItemId, 'amount', fils);
               setDiscountEditId(null);
             });
@@ -692,7 +692,7 @@ export function CartSidebar() {
           const amt = pendingGlobalAmt;
           setPendingGlobalAmt(null);
           setShowConflictConfirm(false);
-          if (amt !== null) requireAdminAction(() => setGlobalDiscount('amount', amt));
+          if (amt !== null) requireAdminActionOnce(() => setGlobalDiscount('amount', amt));
         }}
         onCancel={() => {
           setPendingGlobalAmt(null);

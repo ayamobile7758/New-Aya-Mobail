@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
-  const { requireAdminAction } = useAuth();
+  const { requireAdminActionOnce } = useAuth();
   const [isAddMode, setIsAddMode] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [amountInput, setAmountInput] = useState('');
@@ -345,7 +345,7 @@ export default function ExpensesPage() {
                           - {formatMoney(expense.amount)}
                         </div>
                         <button
-                          onClick={() => requireAdminAction(() => {
+                          onClick={() => requireAdminActionOnce(() => {
                             setEditingId(expense.id);
                             setEditAmountInput(String(expense.amount / 100));
                             setEditCategoryId(expense.category_id);
@@ -359,7 +359,7 @@ export default function ExpensesPage() {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => requireAdminAction(async () => {
+                          onClick={() => requireAdminActionOnce(async () => {
                             if (!confirm('هل أنت متأكد من حذف هذا المصروف؟ سيتم إرجاع المبلغ للحساب.')) return;
                             try {
                               await deleteExpense(expense.id);

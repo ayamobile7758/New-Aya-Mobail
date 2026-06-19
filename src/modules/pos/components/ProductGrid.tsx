@@ -38,7 +38,7 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ onAddExpense, onShowMaint }: ProductGridProps) {
-  const { requireAdminAction, lockNow, accessLevel } = useAuth();
+  const { requireAdminAction, requireAdminActionOnce, lockNow, accessLevel } = useAuth();
   const [search, setSearch]     = useState('');
   const debouncedSearch          = useDebounce(search, 150);
   const [category, setCategory] = useState('all');
@@ -129,7 +129,7 @@ export function ProductGrid({ onAddExpense, onShowMaint }: ProductGridProps) {
 
             {/* Add Expense */}
             <button
-              onClick={() => requireAdminAction(onAddExpense)}
+              onClick={() => requireAdminActionOnce(onAddExpense)}
               className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors shadow-sm"
               title="إضافة مصروف"
               aria-label="إضافة مصروف"

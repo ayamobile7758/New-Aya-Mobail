@@ -28,7 +28,7 @@ export default function MaintenancePage() {
   const [finalAmount, setFinalAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState('');
 
-  const { requireAdminAction } = useAuth();
+  const { requireAdminActionOnce } = useAuth();
 
   // Esc: close topmost open dialog
   useEscKey(() => {
@@ -252,7 +252,7 @@ export default function MaintenancePage() {
                       {job.status !== 'cancelled' && job.status !== 'delivered' && (
                         <button 
                           onClick={() => {
-                            requireAdminAction(() => {
+                            requireAdminActionOnce(() => {
                                updateStatusMutation.mutate({ id: job.id, status: 'cancelled' });
                             });
                           }}

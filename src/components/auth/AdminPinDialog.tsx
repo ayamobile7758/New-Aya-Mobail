@@ -14,9 +14,10 @@ interface AdminPinDialogProps {
   onSuccess: () => void;
   title?: string;
   description?: string;
+  oneShot?: boolean;
 }
 
-export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description }: AdminPinDialogProps) {
+export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description, oneShot }: AdminPinDialogProps) {
   const { grantAdminAccess } = useAuth();
   const [pin, setPin] = useState('');
   const [success, setSuccess] = useState(false);
@@ -63,7 +64,7 @@ export function AdminPinDialog({ isOpen, onClose, onSuccess, title, description 
       // Flash all boxes (~600ms) before confirming, then dismiss.
       setSuccess(true);
       setTimeout(() => {
-        grantAdminAccess();
+        if (!oneShot) grantAdminAccess();
         onSuccess();
         toastSuccess("تم تأكيد الصلاحية");
         setPin('');

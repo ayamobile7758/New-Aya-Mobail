@@ -5,7 +5,7 @@ import { AdminPinDialog } from './AdminPinDialog';
 import { ForceChangeDefaultsScreen } from './ForceChangeDefaultsScreen';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { accessLevel, pendingAdminAction, clearPendingAdminAction, needsDefaultChange } = useAuth();
+  const { accessLevel, pendingAdminAction, clearPendingAdminAction, needsDefaultChange, pendingIsOneShot } = useAuth();
   
   if (needsDefaultChange) {
     return <ForceChangeDefaultsScreen />;
@@ -28,6 +28,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       {pendingAdminAction && (
         <AdminPinDialog
           isOpen={true}
+          oneShot={pendingIsOneShot}
           onClose={() => {
             clearPendingAdminAction();
             window.history.back();
