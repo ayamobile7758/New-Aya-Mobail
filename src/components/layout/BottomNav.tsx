@@ -1,15 +1,15 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Store, Wrench, BarChart2, Menu, Lock } from 'lucide-react';
+import { LayoutDashboard, Store, BookUser, BarChart2, Menu, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
-const PROTECTED = new Set(['/dashboard', '/reports']);
+const PROTECTED = new Set(['/dashboard', '/reports', '/debtbook']);
 
 export function BottomNav({ className }: { className?: string }) {
   const { accessLevel } = useAuth();
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'الرئيسية' },
-    { path: '/maintenance', icon: Wrench, label: 'الصيانة' },
+    { path: '/debtbook', icon: BookUser, label: 'دفتر الدين' },
     { path: '/pos', icon: Store, label: 'نقطة البيع', isCenter: true },
     { path: '/reports', icon: BarChart2, label: 'التقارير' },
     { path: '/more', icon: Menu, label: 'المزيد' },

@@ -22,6 +22,7 @@ import ExpensesPage from './modules/expenses/ExpensesPage';
 import SalesPage from './modules/sales/SalesPage';
 import OperationsPage from './modules/operations/OperationsPage';
 import MaintenancePage from './modules/maintenance/MaintenancePage';
+import DebtBookPage from './modules/debtbook/DebtBookPage';
 import ReportsPage from './modules/reports/ReportsPage';
 import MorePage from './modules/more/MorePage';
 import SettingsPage from './modules/settings/SettingsPage';
@@ -197,6 +198,7 @@ function AppRoutes() {
             <Route path="/operations" element={<ModuleWrapper><OperationsPage /></ModuleWrapper>} />
             <Route path="/reports" element={<ModuleWrapper><ReportsPage /></ModuleWrapper>} />
             <Route path="/settings" element={<ModuleWrapper><SettingsPage /></ModuleWrapper>} />
+            <Route path="/debtbook" element={<ModuleWrapper><DebtBookPage /></ModuleWrapper>} />
           </Route>
 
           {/* Default redirect to POS */}

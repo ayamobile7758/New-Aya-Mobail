@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Store, Package, DollarSign, ArrowRightLeft, Wrench, BarChart2, Settings } from 'lucide-react';
+import { LayoutDashboard, Store, Package, DollarSign, ArrowRightLeft, Wrench, BookUser, BarChart2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/ui.store';
 
@@ -11,6 +11,7 @@ const navItems = [
   { path: '/expenses', icon: DollarSign, label: 'المصروفات', requiresPin: true },
   { path: '/operations', icon: ArrowRightLeft, label: 'العمليات', requiresPin: true },
   { path: '/maintenance', icon: Wrench, label: 'الصيانة', requiresPin: false },
+  { path: '/debtbook', icon: BookUser, label: 'دفتر الدين', requiresPin: true },
   { path: '/reports', icon: BarChart2, label: 'التقارير', requiresPin: true },
   { path: '/settings', icon: Settings, label: 'الإعدادات', requiresPin: true },
 ];

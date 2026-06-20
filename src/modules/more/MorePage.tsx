@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { Package, DollarSign, ArrowRightLeft, FileText, Settings, Archive, Lock, Menu } from 'lucide-react';
+import { Package, DollarSign, ArrowRightLeft, FileText, Settings, Archive, Lock, Menu, Wrench, BookUser } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/layout/PageHeader';
 
-const PROTECTED = new Set(['/sales', '/inventory', '/expenses', '/operations', '/settings']);
+const PROTECTED = new Set(['/sales', '/inventory', '/expenses', '/operations', '/settings', '/debtbook']);
 
 const menus = [
   { path: '/sales', icon: FileText, label: 'فواتير المبيعات' },
@@ -12,6 +12,8 @@ const menus = [
   { path: '/expenses', icon: DollarSign, label: 'المصروفات' },
   { path: '/operations', icon: ArrowRightLeft, label: 'العمليات' },
   { path: '/settings', icon: Settings, label: 'الإعدادات' },
+  { path: '/maintenance', icon: Wrench, label: 'الصيانة' },
+  { path: '/debtbook', icon: BookUser, label: 'دفتر الدين' },
 ];
 
 export default function MorePage() {
