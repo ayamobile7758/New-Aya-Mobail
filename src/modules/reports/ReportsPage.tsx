@@ -271,38 +271,6 @@ export default function ReportsPage() {
           )}
         </div>
 
-        {/* CSV Exports */}
-        <div className={cn('flex flex-wrap gap-2 my-2 pb-3 border-b border-dashed border-border', activeTab === 'pnl' && 'hidden')}>
-          <button
-            onClick={() => exportInvoicesCSV(from, to)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-          >
-            <Download className="w-3.5 h-3.5" />
-            تصدير المبيعات (CSV)
-          </button>
-          <button
-            onClick={() => exportExpensesCSV(from, to)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-          >
-            <Download className="w-3.5 h-3.5" />
-            تصدير المصروفات (CSV)
-          </button>
-          <button
-            onClick={() => exportTopupsCSV(from, to)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-          >
-            <Download className="w-3.5 h-3.5" />
-            تصدير الشحن (CSV)
-          </button>
-          <button
-            onClick={() => exportMaintenanceCSV(from, to)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
-          >
-            <Download className="w-3.5 h-3.5" />
-            تصدير الصيانة (CSV)
-          </button>
-        </div>
-
         {/* Desktop/Tablet Tabs — Show all 7 */}
         <div className="hidden md:flex overflow-x-auto no-scrollbar gap-1 border-b border-border -mx-4 px-4">
           {tabs.map(tab => {
@@ -399,6 +367,38 @@ export default function ReportsPage() {
       {/* ── Content ── */}
       <main className="flex-1 overflow-y-auto p-4">
         <div className="max-w-6xl mx-auto space-y-5">
+          {/* CSV Exports — kept out of the header to keep it clean */}
+          <div className={cn('flex flex-wrap gap-2', activeTab === 'pnl' && 'hidden')}>
+            <button
+              onClick={() => exportInvoicesCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير المبيعات (CSV)
+            </button>
+            <button
+              onClick={() => exportExpensesCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير المصروفات (CSV)
+            </button>
+            <button
+              onClick={() => exportTopupsCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير الشحن (CSV)
+            </button>
+            <button
+              onClick={() => exportMaintenanceCSV(from, to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg hover:border-accent text-xs font-medium text-text-primary"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير الصيانة (CSV)
+            </button>
+          </div>
+
           {isLoading ? (
             <div className="space-y-6">
               {/* KPI Cards Skeletons */}
