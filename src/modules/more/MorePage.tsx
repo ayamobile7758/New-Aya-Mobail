@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Package, DollarSign, ArrowRightLeft, FileText, Settings, Archive, Lock, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const PROTECTED = new Set(['/sales', '/inventory', '/expenses', '/operations', '/settings']);
 
@@ -19,19 +20,11 @@ export default function MorePage() {
   return (
     <div className="flex flex-col h-full bg-background relative isolate" dir="rtl">
       {/* Header */}
-      <header className="bg-surface border-b border-border p-4 md:sticky md:top-0 z-10 shrink-0">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-              <Menu className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold" style={{ fontFamily: 'Tajawal, sans-serif' }}>المزيد</h1>
-              <p className="text-sm text-text-secondary" style={{ fontFamily: 'Tajawal, sans-serif' }}>الوصول السريع إلى أقسام النظام</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        icon={Menu}
+        title="المزيد"
+        subtitle="الوصول السريع إلى أقسام النظام"
+      />
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4">
