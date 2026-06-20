@@ -10,3 +10,8 @@ coverage/
 .env.local
 .env.*.local
 !.env.example
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
