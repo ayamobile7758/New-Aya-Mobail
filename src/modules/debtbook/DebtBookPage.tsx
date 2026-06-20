@@ -44,6 +44,7 @@ import {
 const DEFAULT_CATEGORIES = ["تليفون", "بطاقة", "كفر", "تعمير", "صيانة", "إكسسوار", "أخرى"];
 const DEFAULT_REMINDER_TEMPLATE = "مرحباً سيد [الاسم]، معك [المحل]. نذكّركم بمبلغ مستحق علينا بقيمة [المتبقي]. التفاصيل: [البنود]. شكراً لتعاملكم معنا 🌹";
 const DEFAULT_CONFIRM_TEMPLATE = "مرحباً سيد [الاسم]، استلمنا منكم مبلغ [المدفوع]. المتبقي الآن [المتبقي]. شكراً لكم 🌹";
+const DEFAULT_ADDED_TEMPLATE = "مرحباً سيد [الاسم]، معك [المحل]. تم تسجيل دين جديد بقيمة [المضاف]. إجمالي المتبقي عليكم الآن [المتبقي]. التفاصيل: [البنود]. شكراً لتعاملكم معنا 🌹";
 
 export default function DebtBookPage() {
   const queryClient = useQueryClient();
@@ -68,9 +69,15 @@ export default function DebtBookPage() {
   const [shopNameInput, setShopNameInput] = useState('');
   const [reminderTemplateInput, setReminderTemplateInput] = useState('');
   const [confirmTemplateInput, setConfirmTemplateInput] = useState('');
+  const [addedTemplateInput, setAddedTemplateInput] = useState('');
 
   // Just paid amount tracking for showing WhatsApp confirmation modal
   const [lastPaymentAmount, setLastPaymentAmount] = useState<number | null>(null);
+  // Tracks the just-added debt amount, to surface an immediate "send" reminder
+  const [lastAddedAmount, setLastAddedAmount] = useState<number | null>(null);
+  // Which action just happened this session — drives the prominent immediate alert
+  // so the user doesn't forget to send the message. null = nothing pending.
+  const [pendingSend, setPendingSend] = useState<'added' | 'confirm' | null>(null);
 
   // Esc Key closing
   useEscKey(() => {
@@ -143,6 +150,14 @@ export default function DebtBookPage() {
     }
   });
 
+  const { data: addedTemplate = DEFAULT_ADDED_TEMPLATE } = useQuery<string>({
+    queryKey: ['debtbook-msg-added'],
+    queryFn: async () => {
+      const val = await readSetting('debtbook_msg_added');
+      return typeof val === 'string' ? val : DEFAULT_ADDED_TEMPLATE;
+    }
+  });
+
   // Mutations
   const createDebtorMutation = useMutation({
     mutationFn: createDebtor,
@@ -187,13 +202,16 @@ export default function DebtBookPage() {
 
   const addDebtItemMutation = useMutation({
     mutationFn: addDebtItem,
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['debtbook-debtors'] });
       queryClient.invalidateQueries({ queryKey: ['debtbook-summary'] });
       queryClient.invalidateQueries({ queryKey: ['debtbook-detail', selectedDebtorId] });
       toast.success('تم إضافة الدين بنجاح');
       setIsAddDebtOpen(false);
       setDebtItemForm({ category: '', amount: '', note: '' });
+      // Surface an immediate, prominent send-reminder so the user doesn't forget.
+      setLastAddedAmount(variables.amount);
+      setPendingSend('added');
     },
     onError: (err: any) => {
       toast.error('فشل إضافة الدين: ' + err.message);
@@ -223,6 +241,8 @@ export default function DebtBookPage() {
       setLastPaymentAmount(variables.amount);
       setPaymentForm({ amount: '', note: '' });
       setIsRecordPaymentOpen(false);
+      // Surface an immediate, prominent send-reminder so the user doesn't forget.
+      setPendingSend('confirm');
     },
     onError: (err: any) => {
       toast.error('فشل تسجيل السداد: ' + err.message);
@@ -254,15 +274,17 @@ export default function DebtBookPage() {
   });
 
   const saveTemplatesMutation = useMutation({
-    mutationFn: async (data: { shopName: string; reminder: string; confirm: string }) => {
+    mutationFn: async (data: { shopName: string; reminder: string; confirm: string; added: string }) => {
       await writeSetting('debtbook_shop_name', data.shopName);
       await writeSetting('debtbook_msg_reminder', data.reminder);
       await writeSetting('debtbook_msg_confirm', data.confirm);
+      await writeSetting('debtbook_msg_added', data.added);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debtbook-shop-name'] });
       queryClient.invalidateQueries({ queryKey: ['debtbook-msg-reminder'] });
       queryClient.invalidateQueries({ queryKey: ['debtbook-msg-confirm'] });
+      queryClient.invalidateQueries({ queryKey: ['debtbook-msg-added'] });
       toast.success('تم حفظ القوالب بنجاح');
       setIsEditTemplatesOpen(false);
     },
@@ -291,7 +313,22 @@ export default function DebtBookPage() {
   };
 
   // WhatsApp Helper Function
-  const handleSendWhatsApp = (debtorName: string, phoneNum: string | null, type: 'reminder' | 'confirm', justPaidFils?: number) => {
+  //
+  // Works for all three message types, and is designed so a message can be sent
+  // LATER (deferred) without a fresh add/payment:
+  //   - 'reminder' → general outstanding reminder.
+  //   - 'added'    → newest debt item (or an explicit justAddedFils), reminding
+  //                  of the old balance and showing the running total.
+  //   - 'confirm'  → newest payment (or an explicit justPaidFils), with the
+  //                  paid amount, remaining balance and the running total.
+  // When no explicit amount is passed, we derive it from the latest record so
+  // the buttons stay useful even after the session ended.
+  const handleSendWhatsApp = (
+    debtorName: string,
+    phoneNum: string | null,
+    type: 'reminder' | 'confirm' | 'added',
+    explicitAmountFils?: number,
+  ) => {
     if (!phoneNum) {
       toast.error('لا يوجد رقم هاتف مسجل لهذا العميل');
       return;
@@ -306,8 +343,9 @@ export default function DebtBookPage() {
       cleaned = '962' + cleaned;
     }
 
-    let template = type === 'reminder' ? reminderTemplate : confirmTemplate;
-    
+    const template =
+      type === 'reminder' ? reminderTemplate : type === 'added' ? addedTemplate : confirmTemplate;
+
     // Build items string representing remaining dues
     let itemsStr = '';
     if (detail && detail.items) {
@@ -317,14 +355,29 @@ export default function DebtBookPage() {
         .join('، ');
     }
 
+    // Derive the amount for 'added' / 'confirm' when not explicitly provided,
+    // so a deferred send still carries a sensible number (last record).
+    let amountFils = explicitAmountFils;
+    if (amountFils === undefined && detail) {
+      if (type === 'added' && detail.items.length > 0) {
+        // Newest item is the last one (items are ordered created_at ASC).
+        amountFils = detail.items[detail.items.length - 1].amount;
+      } else if (type === 'confirm' && detail.payments.length > 0) {
+        // Payments are ordered paid_at DESC → first is the most recent.
+        amountFils = detail.payments[0].amount;
+      }
+    }
+
     let msg = template
       .replace(/\[الاسم\]/g, debtorName)
       .replace(/\[المحل\]/g, shopName || 'المحل')
       .replace(/\[المتبقي\]/g, detail ? formatMoney(detail.remaining) : '0.00 د.أ')
+      .replace(/\[الإجمالي\]/g, detail ? formatMoney(detail.totalDebt) : '0.00 د.أ')
       .replace(/\[البنود\]/g, itemsStr || 'لا يوجد');
 
-    if (type === 'confirm' && justPaidFils !== undefined) {
-      msg = msg.replace(/\[المدفوع\]/g, formatMoney(justPaidFils));
+    if (amountFils !== undefined) {
+      const amountStr = formatMoney(amountFils);
+      msg = msg.replace(/\[المضاف\]/g, amountStr).replace(/\[المدفوع\]/g, amountStr);
     }
 
     const url = `https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`;
@@ -349,6 +402,7 @@ export default function DebtBookPage() {
                 setShopNameInput(shopName);
                 setReminderTemplateInput(reminderTemplate);
                 setConfirmTemplateInput(confirmTemplate);
+                setAddedTemplateInput(addedTemplate);
                 setIsEditTemplatesOpen(true);
               }}
               className="w-10 h-10 border border-border bg-surface text-text-secondary hover:text-text-primary hover:border-accent rounded-lg flex items-center justify-center transition-colors"
@@ -458,7 +512,14 @@ export default function DebtBookPage() {
                 return (
                   <div
                     key={debtor.id}
-                    onClick={() => setSelectedDebtorId(debtor.id)}
+                    onClick={() => {
+                      // Fresh detail view: clear any pending send-reminder from a
+                      // previous debtor so the alert never leaks across debtors.
+                      setPendingSend(null);
+                      setLastPaymentAmount(null);
+                      setLastAddedAmount(null);
+                      setSelectedDebtorId(debtor.id);
+                    }}
                     className={cn(
                       "bg-surface border border-border rounded-2xl p-5 shadow-sm hover:border-accent transition-all cursor-pointer flex flex-col justify-between gap-3 relative",
                       isPaidFull && "opacity-60 bg-muted/30"
@@ -637,14 +698,53 @@ export default function DebtBookPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Immediate send-reminder — appears right after add/payment so
+                    the user doesn't forget to send the WhatsApp message. */}
+                {pendingSend && detail.debtor.phone && (
+                  <div className="rounded-2xl border border-[#25D366]/40 bg-[#25D366]/10 p-3 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#25D366] opacity-75" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#25D366]" />
+                      </span>
+                      <span className="text-xs font-bold text-[#075E54]">
+                        {pendingSend === 'added' ? 'تم تسجيل دين — لا تنسَ إرسال الإشعار' : 'تم تسجيل سداد — لا تنسَ إرسال التأكيد'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          handleSendWhatsApp(
+                            detail.debtor.name,
+                            detail.debtor.phone,
+                            pendingSend,
+                            pendingSend === 'added' ? lastAddedAmount ?? undefined : lastPaymentAmount ?? undefined,
+                          );
+                          setPendingSend(null);
+                        }}
+                        className="flex-1 h-10 bg-[#25D366] text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#1da851] transition-colors shadow-sm"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>إرسال الآن</span>
+                      </button>
+                      <button
+                        onClick={() => setPendingSend(null)}
+                        className="h-10 px-3 text-text-secondary hover:text-text-primary text-xs font-medium rounded-xl hover:bg-surface transition-colors"
+                      >
+                        لاحقاً
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Primary actions */}
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => {
                       setDebtItemForm({ category: categories[0] || 'أخرى', amount: '', note: '' });
                       setIsAddDebtOpen(true);
                     }}
-                    className="w-full h-11 bg-accent text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors"
+                    className="w-full h-11 bg-accent text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm"
                   >
                     <FilePlus2 className="w-5 h-5" />
                     <span>إضافة دين جديد</span>
@@ -655,32 +755,55 @@ export default function DebtBookPage() {
                       setPaymentForm({ amount: '', note: '' });
                       setIsRecordPaymentOpen(true);
                     }}
-                    className="w-full h-11 bg-success-bg text-success border border-success/30 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-success-bg/85 transition-colors"
+                    className="w-full h-11 bg-success-bg text-success border border-success/30 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-success-bg/85 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={detail.remaining === 0}
                   >
                     <CheckCircle className="w-5 h-5" />
                     <span>تسجيل سداد</span>
                   </button>
+                </div>
 
-                  <button
-                    onClick={() => handleSendWhatsApp(detail.debtor.name, detail.debtor.phone, 'reminder')}
-                    className="w-full h-11 border border-border bg-surface hover:border-accent text-text-primary font-medium rounded-xl flex items-center justify-center gap-2 transition-colors"
-                    disabled={!detail.debtor.phone || detail.remaining === 0}
-                  >
-                    <MessageSquare className="w-5 h-5 text-[#25D366]" />
-                    <span>إرسال تذكير بالدين (واتساب)</span>
-                  </button>
-                  
-                  {lastPaymentAmount !== null && (
-                    <button
-                      onClick={() => handleSendWhatsApp(detail.debtor.name, detail.debtor.phone, 'confirm', lastPaymentAmount)}
-                      className="w-full h-11 bg-[#25D366]/10 text-[#075E54] border border-[#25D366]/30 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/15 transition-colors animate-pulse"
-                    >
-                      <MessageSquare className="w-5 h-5 text-[#25D366]" />
-                      <span>إرسال تأكيد السداد المباشر</span>
-                    </button>
+                {/* WhatsApp messages — always available so a message can be sent
+                    later (deferred), even without a fresh add/payment. */}
+                <div className="rounded-2xl border border-border bg-surface p-3">
+                  <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+                    <MessageSquare className="w-4 h-4 text-[#25D366]" />
+                    <span className="text-xs font-bold text-text-secondary">رسائل الواتساب</span>
+                  </div>
+                  {!detail.debtor.phone && (
+                    <p className="text-[11px] text-text-secondary text-center py-1 mb-1">لا يوجد رقم هاتف مسجّل — أضِف رقماً لتفعيل الإرسال.</p>
                   )}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => handleSendWhatsApp(detail.debtor.name, detail.debtor.phone, 'reminder')}
+                      className="w-full h-10 border border-border bg-background hover:border-[#25D366] hover:bg-[#25D366]/5 text-text-primary text-sm font-medium rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-background"
+                      disabled={!detail.debtor.phone || detail.remaining === 0}
+                    >
+                      <MessageSquare className="w-4 h-4 text-[#25D366]" />
+                      <span>تذكير بالدين المتبقّي</span>
+                    </button>
 
+                    <button
+                      onClick={() => handleSendWhatsApp(detail.debtor.name, detail.debtor.phone, 'added')}
+                      className="w-full h-10 border border-border bg-background hover:border-[#25D366] hover:bg-[#25D366]/5 text-text-primary text-sm font-medium rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-background"
+                      disabled={!detail.debtor.phone || detail.items.length === 0}
+                    >
+                      <FilePlus2 className="w-4 h-4 text-[#25D366]" />
+                      <span>تأكيد آخر دين مُضاف</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSendWhatsApp(detail.debtor.name, detail.debtor.phone, 'confirm')}
+                      className="w-full h-10 border border-border bg-background hover:border-[#25D366] hover:bg-[#25D366]/5 text-text-primary text-sm font-medium rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-background"
+                      disabled={!detail.debtor.phone || detail.payments.length === 0}
+                    >
+                      <CheckCircle className="w-4 h-4 text-[#25D366]" />
+                      <span>تأكيد آخر سداد</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
                   <div className="pt-4 border-t border-border mt-2">
                     <button
                       onClick={() => {
@@ -1106,7 +1229,8 @@ export default function DebtBookPage() {
                 saveTemplatesMutation.mutate({
                   shopName: shopNameInput,
                   reminder: reminderTemplateInput,
-                  confirm: confirmTemplateInput
+                  confirm: confirmTemplateInput,
+                  added: addedTemplateInput
                 });
               }}
               className="space-y-4"
@@ -1148,6 +1272,19 @@ export default function DebtBookPage() {
                 />
               </div>
 
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-sm font-medium">قالب رسالة إشعار دين جديد</label>
+                  <span className="text-[10px] text-text-secondary font-mono">الواتساب</span>
+                </div>
+                <textarea
+                  value={addedTemplateInput}
+                  onChange={e => setAddedTemplateInput(e.target.value)}
+                  className="w-full h-24 p-3 rounded-lg border border-border focus:border-accent outline-none bg-background text-xs resize-none"
+                  required
+                />
+              </div>
+
               <div className="bg-muted/50 p-3.5 rounded-xl border border-border space-y-1 text-[11px] text-text-secondary">
                 <p className="font-bold text-text-primary flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5 text-accent" />
@@ -1157,6 +1294,8 @@ export default function DebtBookPage() {
                   <li><span className="font-bold text-accent">[الاسم]</span> - اسم العميل الكامل</li>
                   <li><span className="font-bold text-accent">[المحل]</span> - اسم المحل المسجل بالأعلى</li>
                   <li><span className="font-bold text-accent">[المتبقي]</span> - المبلغ المتبقي المستحق</li>
+                  <li><span className="font-bold text-accent">[الإجمالي]</span> - إجمالي الدين الكلي (كل البنود)</li>
+                  <li><span className="font-bold text-accent">[المضاف]</span> - مبلغ آخر دين مُضاف (لإشعار الدين الجديد)</li>
                   <li><span className="font-bold text-accent">[المدفوع]</span> - المبلغ المسدد حديثاً (لرسالة التأكيد)</li>
                   <li><span className="font-bold text-accent">[البنود]</span> - قائمة بالبنود المتبقية وتكلفتها</li>
                 </ul>
@@ -1164,7 +1303,7 @@ export default function DebtBookPage() {
 
               <button
                 type="submit"
-                disabled={saveTemplatesMutation.isPending || !reminderTemplateInput || !confirmTemplateInput}
+                disabled={saveTemplatesMutation.isPending || !reminderTemplateInput || !confirmTemplateInput || !addedTemplateInput}
                 className="w-full h-11 bg-accent hover:bg-accent-hover text-white font-bold rounded-lg disabled:opacity-50 transition-colors shadow-sm"
               >
                 حفظ التغييرات
